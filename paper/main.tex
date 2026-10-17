@@ -9,7 +9,7 @@
 \usepackage{hyperref}
 \usepackage{microtype}
 \usepackage{enumitem}
-\usepackage[sort&compress]{natbib}
+\usepackage[sort&compress,numbers]{natbib}
 
 \hypersetup{
   colorlinks=true,
@@ -52,8 +52,9 @@ loop-free graphs, and implementations that apply them more broadly are easy to
 get subtly wrong: we document three distinct defects that arose in our own
 implementation.  We give a self-contained statement of the two-sided bound for
 arbitrary finite \emph{weighted} graphs with self-loops, with hypotheses
-spelled out precisely enough that the statement is actually true, and we prove
-it without importing unstated lemmas.  We then determine the extremal
+spelled out precisely enough that the statement is actually true, and we work
+through its proof by the co-area method rather than quoting the conclusion.  We
+then determine the extremal
 coefficient exactly: for the two-vertex family with equal self-loop weight,
 $\lambda_2/h = 2$ identically, so the constant $2$ in Buser's bound is
 attained and cannot be lowered.  Finally we build a verification pipeline that
@@ -80,10 +81,10 @@ be cut.  The classical message is that $\lambda_2$ and $h$ control one another:
   1-\sqrt{h(2-h)} \;\le\; \lambda_2 \;\le\; 2h+2h^{2},
 \end{equation}
 the left-hand side being Cheeger's bound and the right-hand side Buser's
-\citep{alon1985,dodziuk1984,mohar1988,mohar1989,chung1997}.  The bound
+\cite{chung1997,alon1985,dodziuk1984,mohar1988,mohar1989}.  The bound
 \eqref{eq:classical} is the engine behind spectral clustering, expander
 construction, mixing-time estimates and, in higher-dimensional form, the
-higher-order Cheeger inequalities of \citet{lee2014}.
+higher-order Cheeger inequalities of \cite{lee2014}.
 
 Equation \eqref{eq:classical} is usually stated for $d$-regular, loop-free
 graphs.  This is not pedantry: both the constant and the meaning of $h$ depend
@@ -163,8 +164,7 @@ $\vol(S)\ge\bnd(S)$, we always have $h(G)\in(0,1]$.
 \begin{remark}\label{rem:normalisation}
 For a $d$-regular loop-free graph, $\vol(S)=d|S|$, so
 $h(G)=\min_S|E(S,S^c)|/(d|S|)$ with $|S|\le n/2$, which is exactly the
-normalisation in which the classical statements of
-\citet{chung1997} are written; note $2h+2h^2=2h(1+h)$ and
+normalisation in which the classical statements of \cite{chung1997} are written; note $2h+2h^2=2h(1+h)$ and
 $1-\sqrt{h(2-h)}=1-\sqrt{2h(1-h/2)}$.  Because $\vol(S)$ and $\vol(V\setminus S)$
 agree only in the regular case, the complement symmetry $S\mapsto S^c$ does
 \emph{not} allow one to restrict the minimum in Definition~\ref{def:cheeger} to
@@ -407,17 +407,17 @@ defects.
 \section{Related work}\label{sec:related}
 
 The two-sided bound \eqref{eq:classical} is classical.  Cheeger's isoperimetric
-estimate originates in \citet{chung1997} (and in the graph literature with
-\citet{alon1985} and \citet{dodziuk1984}); the reverse direction and the study
+estimate originates in \cite{chung1997} (and in the graph literature with
+\cite{alon1985} and \cite{dodziuk1984}); the reverse direction and the study
 of the optimal ``isoperimetric number'' constant are due to Buser and to
-\citet{mohar1988,mohar1989}.  \citet{lee2014} develop the higher-order Cheeger
+\cite{mohar1988,mohar1989}.  \cite{lee2014} develop the higher-order Cheeger
 inequalities and treat graphs with self-loops via a loop-aware Cheeger constant.
 
 We therefore do not claim \eqref{eq:classical} as new.  Our contribution is
 adjacent: an exact statement of the extremal coefficient, a proof written out
 in full for the generality claimed, certified computation, and exhaustive exact
 verification.  A caveat on the literature review: the full texts of
-\citet{mohar1988,mohar1989} were not accessible to us, and we verified only
+\cite{mohar1988,mohar1989} were not accessible to us, and we verified only
 their bibliographic metadata through Crossref; we therefore make no claim about
 their internal contents, and specifically do not claim that the sharpness family
 of Theorem~\ref{thm:sharp} is absent from them.
@@ -474,8 +474,11 @@ checked and the number of violations found in each direction.
 R.V.P.\ is the sole author and is responsible for the mathematical content, the
 code, the verification, and the writing.
 
-\section*{Funding and competing interests}
-No funding was received.  The author declares no competing interests.
+\section*{Funding}
+This work received no funding.
+
+\section*{Competing interests}
+The author declares no competing interests.
 
 \section*{Ethics}
 No human subjects, personal data, or animals are involved.  No ethics approval
@@ -496,7 +499,7 @@ gives $\sum_v d_vf_v^2\le (\sum_v d_vf_v^2)^{1/2}(\sum_v d_v(f_v-m)^2)^{1/2}$,
 hence $\sum_v d_v|f_v-m|\le (\vol(V)\,\sum_v d_v(f_v-m)^2)^{1/2}$.  Combining
 with Lemma~\ref{lem:sweep} yields the estimate used in Theorem~\ref{thm:two-sided}.
 
-\bibliographystyle{plainnat}
+\bibliographystyle{unsrt}
 \bibliography{references}
 
 \end{document}
