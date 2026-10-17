@@ -80,7 +80,8 @@ experiments/    run_verification.py     the exhaustive exact sweep
 results/        verification_summary.json  (generated; committed)
 research/       literature_review.md, novelty_assessment.md, evidence_ledger.md,
                 hostile_review.md, journal_selection.md, specification.md,
-                acceptance_assessment.md, limitations.md, exploration scripts
+                acceptance_assessment.md, limitations.md,
+                github_account_verification.md, exploration scripts
 ```
 
 ## Reproducing the results
