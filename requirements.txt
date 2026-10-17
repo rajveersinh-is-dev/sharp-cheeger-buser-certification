@@ -1,0 +1,12 @@
+# Runtime dependencies for the verification pipeline.
+# Pinned to the versions this project was developed and tested with
+# (Python 3.14.6 on Windows).  Lower bounds are stated where safe.
+
+sympy>=1.12        # exact characteristic polynomials; developed against 1.14.0
+numpy>=1.24        # floating-point cross-checks; developed against 2.4.6
+mpmath>=1.3        # certified interval arithmetic; ships with sympy
+pytest>=7.0        # test suite; developed against 9.1.1
+
+# LaTeX is NOT a Python dependency.  Build the PDF with:
+#   tectonic -X compile paper/main.tex --outdir paper
+# (tectonic downloads the TeX bundle itself; no local TeX install needed.)

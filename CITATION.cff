@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software or the characterisation it certifies, please cite it as below."
+title: "Exact characterisation and certification of the sharp two-sided Cheeger--Buser bound for finite weighted graphs"
+abstract: >-
+  Exact characterisation, certified computation and exhaustive verification of
+  the two-sided Cheeger--Buser comparison between the second eigenvalue of the
+  normalised Laplacian and the Cheeger constant of a finite weighted graph with
+  self-loops. Includes a sharpness family attaining the extremal coefficient
+  exactly, and an exact-arithmetic verification pipeline.
+type: software
+authors:
+  - given-names: Rajveersinh Vishal
+    family-names: Pardeshi
+    affiliation: "Independent Researcher"
+license: MIT
+repository-code: "https://github.com/rajveersinh-is-dev/sharp-cheeger-buser-certification"
+keywords:
+  - spectral graph theory
+  - Cheeger inequality
+  - Buser inequality
+  - normalised Laplacian
+  - exact computation
+  - computer-assisted verification
+version: 1.0.0
+date-released: "2026-10-18"
