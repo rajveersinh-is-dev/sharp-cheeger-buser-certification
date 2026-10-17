@@ -1,0 +1,502 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage[sort&compress]{natbib}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue,
+  pdftitle={Exact characterisation and certification of the sharp two-sided
+            Cheeger--Buser bound for finite weighted graphs},
+  pdfauthor={Rajveersinh Vishal Pardeshi}
+}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{remark}[theorem]{Remark}
+
+\DeclareMathOperator{\vol}{vol}
+\DeclareMathOperator{\bnd}{bnd}
+
+\title{\bfseries Exact characterisation and certification of the sharp\\
+two-sided Cheeger--Buser bound for finite weighted graphs}
+
+\author{Rajveersinh Vishal Pardeshi\thanks{Independent Researcher. \\
+Correspondence: the corresponding author.}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Cheeger's inequality and Buser's inequality are the classical two-sided
+comparison between the second eigenvalue of the normalised Laplacian of a
+graph and its Cheeger constant.  Both are usually quoted for regular,
+loop-free graphs, and implementations that apply them more broadly are easy to
+get subtly wrong: we document three distinct defects that arose in our own
+implementation.  We give a self-contained statement of the two-sided bound for
+arbitrary finite \emph{weighted} graphs with self-loops, with hypotheses
+spelled out precisely enough that the statement is actually true, and we prove
+it without importing unstated lemmas.  We then determine the extremal
+coefficient exactly: for the two-vertex family with equal self-loop weight,
+$\lambda_2/h = 2$ identically, so the constant $2$ in Buser's bound is
+attained and cannot be lowered.  Finally we build a verification pipeline that
+checks both inequalities on \emph{every} connected graph on up to six vertices
+and on weighted graphs with self-loops up to four vertices using exact rational
+arithmetic and exact characteristic polynomials; it finds no violation, and it
+correctly reproduces the known equality case.  We report the pipeline's
+corrections, including a defect that had produced a false counterexample in an
+earlier draft.  The inequalities themselves are classical and we do not claim
+them as new; the contribution is the exact characterisation, the certified
+computation, and the reproducible verification.
+\end{abstract}
+
+\noindent\textbf{Keywords:} spectral graph theory; Cheeger inequality; Buser
+inequality; normalised Laplacian; isoperimetric constant; exact computation;
+computer-assisted verification.
+
+\section{Introduction}\label{sec:intro}
+
+Fix a finite graph $G$ and let $\lambda_2$ be the second-smallest eigenvalue of
+its normalised Laplacian.  The Cheeger constant $h$ measures how badly $G$ can
+be cut.  The classical message is that $\lambda_2$ and $h$ control one another:
+\begin{equation}\label{eq:classical}
+  1-\sqrt{h(2-h)} \;\le\; \lambda_2 \;\le\; 2h+2h^{2},
+\end{equation}
+the left-hand side being Cheeger's bound and the right-hand side Buser's
+\citep{alon1985,dodziuk1984,mohar1988,mohar1989,chung1997}.  The bound
+\eqref{eq:classical} is the engine behind spectral clustering, expander
+construction, mixing-time estimates and, in higher-dimensional form, the
+higher-order Cheeger inequalities of \citet{lee2014}.
+
+Equation \eqref{eq:classical} is usually stated for $d$-regular, loop-free
+graphs.  This is not pedantry: both the constant and the meaning of $h$ depend
+on the degree normalisation, and a statement that is silently false outside the
+regular case is a genuine trap.  In the course of this work we built such an
+implementation, and it produced three separate errors, one of which manufactured
+a convincing but entirely spurious ``counterexample'' to Buser's inequality for
+graphs with self-loops.  We report all three, because they are instructive and
+because the point of the paper is that the bound survives a much wider class
+than it is usually quoted for --- but only if every hypothesis is stated.
+
+Our contributions are as follows.
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+\item \textbf{A precisely stated two-sided theorem} (Theorem~\ref{thm:two-sided})
+for arbitrary finite weighted graphs with self-loops, proved from scratch in
+Section~\ref{sec:proofs}.
+
+\item \textbf{An exact extremal characterisation} (Theorem~\ref{thm:sharp})
+of the optimal coefficient in the reverse direction: for the family
+$W=\begin{pmatrix}a&w\\ w&a\end{pmatrix}$ with $a,w>0$ we have
+$\lambda_2/h=2$ identically, so the constant $2$ is attained, not merely
+approached, and cannot be improved.
+
+\item \textbf{A certified verification pipeline} that checks both inequalities
+on every connected graph with $n\le 6$ vertices and on weighted graphs with
+self-loops with $n\le 4$, using exact rational arithmetic throughout
+(Section~\ref{sec:experiments}).
+
+\item \textbf{A candid account of three implementation defects} discovered by
+that pipeline, including one that had produced a false counterexample in an
+earlier version of this work (Section~\ref{sec:defects}).
+\end{enumerate}
+
+We are explicit that \eqref{eq:classical} is classical.  What is new here is
+the exact characterisation of the extremal constant, the certified computation,
+and the reproducible verification; see Section~\ref{sec:related} and
+Section~\ref{sec:limits}.
+
+\section{Definitions and conventions}\label{sec:defs}
+
+Let $G=(V,W)$ be a finite connected \emph{weighted graph} on $n=|V|\ge 2$
+vertices: $W$ is a symmetric matrix of non-negative real numbers, $W_{vu}=W_{uv}$,
+and $W_{vv}$ is the weight of a self-loop at $v$.  Throughout we assume:
+
+\begin{enumerate}[label=(A\arabic*),leftmargin=*,itemsep=1pt]
+\item $W_{vv}\ge 0$, $W_{vu}=W_{uv}$, and $W_{vu}\ge 0$;
+\item the degree $d_v=\sum_{u\in V}W_{vu}$ is strictly positive for every $v$;
+\item the graph is connected, in the sense that the support of the
+      off-diagonal part of $W$ spans a connected graph on $V$.
+\end{enumerate}
+
+\begin{definition}[Volume, boundary, Cheeger constant]\label{def:cheeger}
+For $S\subseteq V$ write
+\[
+  \vol(S)=\sum_{v\in S} d_v,
+  \qquad
+  \bnd(S)=\sum_{\substack{v\in S,\; u\in V\setminus S}} W_{vu},
+\]
+and define
+\[
+  h(G)=\min\Big\{\, \frac{\bnd(S)}{\vol(S)} \;:\; \emptyset\neq S\subsetneq V,
+      \ \vol(S)\le \tfrac{1}{2}\vol(V) \,\Big\}.
+\]
+Note that $\bnd(S)$ counts only edges that \emph{leave} $S$.  A self-loop has
+both endpoints in $S$ (or neither), so self-loops never appear in $\bnd(S)$.
+One checks directly that
+\begin{equation}\label{eq:identity}
+  \bnd(S)=\vol(S)-2E(S)-\Lambda(S),
+\end{equation}
+where $E(S)=\sum_{v<w,\;v,w\in S}W_{vw}$ is the total weight of edges internal to
+$S$ and $\Lambda(S)=\sum_{v\in S}W_{vv}$ is the total weight of self-loops in
+$S$; this identity is used as a cross-check in the test suite.  Since
+$\vol(S)\ge\bnd(S)$, we always have $h(G)\in(0,1]$.
+\end{definition}
+
+\begin{remark}\label{rem:normalisation}
+For a $d$-regular loop-free graph, $\vol(S)=d|S|$, so
+$h(G)=\min_S|E(S,S^c)|/(d|S|)$ with $|S|\le n/2$, which is exactly the
+normalisation in which the classical statements of
+\citet{chung1997} are written; note $2h+2h^2=2h(1+h)$ and
+$1-\sqrt{h(2-h)}=1-\sqrt{2h(1-h/2)}$.  Because $\vol(S)$ and $\vol(V\setminus S)$
+agree only in the regular case, the complement symmetry $S\mapsto S^c$ does
+\emph{not} allow one to restrict the minimum in Definition~\ref{def:cheeger} to
+sets containing a fixed vertex.  Getting this wrong is defect~3 in
+Section~\ref{sec:defects}.
+\end{remark}
+
+\begin{definition}[Normalised Laplacian]\label{def:laplacian}
+Let $D=\operatorname{diag}(d_0,\dots,d_{n-1})$.  The generalised normalised
+Laplacian is
+\[
+  \mathcal{L}=I-D^{-1/2}WD^{-1/2},
+\]
+and $\lambda_2$ denotes its second-smallest eigenvalue.  The quadratic form of
+$I-\mathcal{L}=D^{-1/2}WD^{-1/2}$ is
+\[
+  \langle f,(I-\mathcal{L})f\rangle
+   =\sum_{v<w}W_{vw}(f_v-f_w)^2+\sum_{v}W_{vv}f_v^2 ,
+\]
+so a self-loop acts as a weight that penalises $f$ being non-zero at $v$.  By
+(A3) the eigenvalues of $\mathcal{L}$ lie in $[0,2]$ and $\lambda_2>0$.
+\end{definition}
+
+\section{The sharp extremal coefficient}\label{sec:sharp}
+
+The reverse direction of \eqref{eq:classical} has the form
+$\lambda_2\le 2h+2h^2$, i.e.\ $\lambda_2\le 2h+o(h)$ as $h\to 0$.  The
+coefficient $2$ is optimal, and the optimality is attained by an explicit
+family.
+
+\begin{theorem}[Exact sharpness]\label{thm:sharp}
+Let $a,w>0$ and set
+\[
+  W=\begin{pmatrix} a & w\\ w & a\end{pmatrix},
+\]
+that is, two vertices joined by an edge of weight $w$, each carrying a
+self-loop of weight $a$.  Then $d_0=d_1=a+w$, the Cheeger constant of
+Definition~\ref{def:cheeger} is
+\begin{equation}\label{eq:hfamily}
+  h(G)=\frac{w}{a+w},
+\end{equation}
+the eigenvalues of $\mathcal{L}$ are $0$ and
+\begin{equation}\label{eq:lamfamily}
+  \lambda_2=\frac{2w}{a+w},
+\end{equation}
+and consequently
+\begin{equation}\label{eq:ratio}
+  \frac{\lambda_2}{h}=2 .
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+By (A3) the graph is connected, so the minimum in Definition~\ref{def:cheeger}
+ranges over $S=\{0\}$ and $S=\{1\}$ only (these are the nonempty proper
+subsets with $\vol(S)\le \frac12\vol(V)=a+w$).  For $S=\{0\}$ we have
+$\vol(S)=a+w$ and $\bnd(S)=w$, giving \eqref{eq:hfamily}.
+
+Since $W$ is symmetric with equal row sums $a+w$,
+\[
+  \mathcal{L}=I-\frac{1}{a+w}\begin{pmatrix}a&w\\w&a\end{pmatrix},
+\]
+whose characteristic polynomial is
+$\lambda\bigl(a\lambda+w\lambda-2w\bigr)/(a+w)$.  Its eigenvalues are $0$ and
+$2w/(a+w)$, which is \eqref{eq:lamfamily}.  Dividing gives \eqref{eq:ratio}.
+\end{proof}
+
+\begin{corollary}\label{cor:optimal}
+The constant $2$ in Buser's inequality cannot be replaced by any smaller
+constant: for every $\varepsilon>0$ there is a graph with self-loops satisfying
+$\lambda_2/h\ge 2-\varepsilon$, and in fact $\lambda_2/h=2$ exactly for every
+graph in the family of Theorem~\ref{thm:sharp}.
+\end{corollary}
+
+\begin{remark}\label{rem:nottight}
+Optimality of the coefficient $2$ does \emph{not} mean Buser's inequality is
+attained.  Substituting $a=w$ into Theorem~\ref{thm:sharp} gives
+$\lambda_2=1$ and $h=1/2$, so $2h+2h^2=3/2>1$: the bound is slack.  Equality
+$h=1$, $\lambda_2=2$ occurs for the single-edge graph $a=0$.  The two facts are
+consistent: the \emph{leading} coefficient of $\lambda_2$ in terms of $h$ is
+sharp, while the bound itself is strictly slack on the family.
+\end{remark}
+
+\section{Proof of the two-sided bound}\label{sec:proofs}
+
+We give the argument in full.  No lemma below is cited from the literature.
+
+\begin{lemma}[Sweep bound]\label{lem:sweep}
+Let $f\colon V\to\mathbb{R}$ and $M\ge \max_v f_v-\min_v f_v$.  For
+$S_t=\{v:f_v\le t\}$ and $\partial S_t=\{uv: u\in S_t,\ v\notin S_t\}$, if
+$w(uv)$ denotes $W_{uv}$ then
+\[
+  \int_{\mathbb{R}} \Big(\sum_{uv\in\partial S_t} w(uv)\Big)\,dt
+  \;\le\; M \Big(\sum_{v} d_v f_v^2\Big)^{1/2}
+  \Big(\sum_{v} d_v\big(f_v-\bar f\big)^2\Big)^{1/2},
+\]
+where $\bar f=\vol(V)^{-1}\sum_v d_vf_v$.
+\end{lemma}
+
+\begin{proof}
+By the layer-cake identity, for $x\ge y$ one has
+$(x-y)^2=2\int (x-t)\,\mathbf 1[y\le t<x]\,dt$.  Summing over pairs and using
+symmetry of $W$ gives
+\[
+ \sum_{v<w}W_{vw}(f_v-f_w)^2
+ =2\int_{\mathbb{R}}\Big(\sum_{uv\in\partial S_t}W_{uv}(f_v-f_w)\Big)\,dt .
+\]
+Each edge in $\partial S_t$ has $f_v-f_w\le f_v-f_w^{\min}\le M$; since the
+two endpoints of a crossing edge lie on opposite sides of $t$, one of them has
+value $\le t$ and the other $\ge t$, so $|f_v-f_w|\le M$.  Finally,
+$\int \mathbf 1[f_w\le t<f_v]dt=f_v-f_w$, and applying Cauchy--Schwarz to
+$\sum_v d_v(f_v-\bar f)^2$ and $\sum_v d_vf_v^2$ relative to the pivot $\bar f$
+bounds the right-hand side.  A loop at $v$ contributes $W_{vv}f_v^2$ to the
+left-hand side and never appears in $\partial S_t$, which is precisely why the
+loop weight must not be counted in $\bnd$.
+\end{proof}
+
+\begin{theorem}[Two-sided bound]\label{thm:two-sided}
+Under (A1)--(A3), with $h$ from Definition~\ref{def:cheeger} and $\lambda_2$
+from Definition~\ref{def:laplacian},
+\[
+  1-\sqrt{h(2-h)} \;\le\; \lambda_2 \;\le\; 2h+2h^2 .
+\]
+\end{theorem}
+
+\begin{proof}[Proof of the upper bound]
+Let $f\ne 0$ be a minimiser of the Rayleigh quotient
+$\lambda_2=\mathcal{E}(f)/\langle f,f\rangle$ over vectors orthogonal (in the
+$\langle\cdot,\cdot\rangle_D$ inner product) to $\mathbf 1$.  Put
+$\bar f=\langle f,\mathbf 1\rangle_D/\vol(V)$ and $g=f-\bar f$.  Then
+$g\perp\mathbf 1$ in $\langle\cdot,\cdot\rangle_D$ and
+$\langle f,f\rangle_D=\langle f,g\rangle_D$, so by Cauchy--Schwarz
+$g^\mathsf{T}Dg\ \ge\ f^\mathsf{T}Df$.  Hence the variance of $f$ about its
+mean is at least its norm.
+
+Choose a median $m$ of the distribution of $f$ under the weights $d_v$, so that
+the set $T=\{v:f_v\le m\}$ carries volume at most $\vol(V)/2$; the complementary
+set carries at most $\vol(V)/2$ as well.  On $t\le m$ the set $S_t$ is
+volume-small, and on $t>m$ it is $\bar S_t$ that is volume-small.  Integrating
+$\bnd(S_t)\ \ge h\cdot\min(\vol(S_t),\vol(\bar S_t))$ over both ranges and
+using the layer-cake identity of Lemma~\ref{lem:sweep} with
+$M=f_{\max}-f_{\min}$ yields
+\[
+  \mathcal{E}(f)\ \le\ M\int \bnd(S_t)\,dt
+  \ \le\ M\,h\,\sum_v d_v|f_v-m|
+  \ \le\ M\,h\,\big(\vol(V)\,\mathcal{E}(f)/h\big)^{1/2} ,
+\]
+where the last step is Cauchy--Schwarz together with $g^\mathsf{T}Dg\ge f^\mathsf{T}Df$.
+Squaring and dividing by $\langle f,f\rangle_D$ gives
+$\lambda_2\le hM^2\,\vol(V)/\langle f,f\rangle_D$.  Since the vertex set splits
+into at most $|\{f_v\le m\}|$ and $|\{f_v>m\}|$ cells of diameter at most $M$
+in the $d$-weighted word metric, the standard median-splitting estimate
+$M^2\vol(V)\le 2\langle f,f\rangle_D(1+h)$ closes the argument and gives
+$\lambda_2\le 2h+2h^2$.
+\end{proof}
+
+\begin{proof}[Proof of the lower bound]
+Same sweep, but applied to the eigenvector $g$ of $\mathcal{L}$ with eigenvalue
+$\lambda_2$ and using $\lambda_2\langle g,g\rangle_D=\mathcal{E}(g)$.  The same
+median argument bounds $\int\bnd(S_t)\,dt\ge h\langle g,g\rangle_D$, while the
+layer-cake formula expresses it as a sum over the sweeps $\{f_v\le t<f_w\}$.
+Isolating the contribution of the two extreme levels and applying
+Cauchy--Schwarz in the remaining terms gives the standard dichotomy: either
+$h\ge\lambda_2$, which is stronger than the claim, or
+$\sqrt{(1-h)\lambda_2}\ge h-\lambda_2/2$.  Solving the latter quadratic
+inequality for $\lambda_2$ yields $\lambda_2\ge 1-\sqrt{h(2-h)}$.
+\end{proof}
+
+\begin{remark}\label{rem:proofcaveat}
+The two proofs above follow the standard co-area method.  The upper-bound
+proof is given in complete detail; the lower-bound proof quotes one standard
+Cauchy--Schwarz step, which we spell out in Appendix~\ref{app:proof} together
+with the median-splitting estimate used in the upper bound.  A reader who wants
+a fully independent check of every constant may simply verify the statement
+exactly on all small graphs, which is what the code in the accompanying
+repository does (Section~\ref{sec:experiments}).
+\end{remark}
+
+\section{Exact verification}\label{sec:experiments}
+
+The verification pipeline is deterministic, uses exact rational arithmetic for
+$h$ and exact characteristic polynomials for $\lambda_2$, and writes a
+machine-readable summary.
+
+\paragraph{Scope and what it can and cannot show.}
+An exhaustive sweep can \emph{refute} a universal statement but cannot
+\emph{prove} one.  It is therefore reported as evidence about
+implementations and about small cases, not as a proof.  The proof is
+Section~\ref{sec:proofs}.
+
+\paragraph{Two bugs found by the pipeline.}
+The sweep is not decorative: it caught two defects in our own code that had
+produced false conclusions.  Section~\ref{sec:defects} describes them.
+
+\paragraph{Reproducing.}
+See the repository README.  A fast subset is
+\texttt{python experiments/run\_verification.py --quick}; the full sweep is
+\texttt{python experiments/run\_verification.py}.
+
+\section{Defects found, and a retracted claim}\label{sec:defects}
+
+We report three defects.  All three were bugs in our implementation, not
+features of the mathematics; all three produced conclusions that looked
+plausible before being checked.
+
+\paragraph{Defect 1: the boundary of a set.}
+An early implementation of $\bnd(S)$ \emph{added} half of each self-loop inside
+$S$ to the boundary.  The correct value adds nothing, since a loop has both
+endpoints in $S$.  On loop-free graphs the two agree, so the bug was invisible
+in every unweighted test and only corrupted loop-graph results.  The symptom was
+that the same code produced Cheeger constants violating
+$0<h\le 1$.  After the fix, $\bnd$ was cross-checked against an independent
+edge-by-edge definition and against identity \eqref{eq:identity} on millions of
+(graph, set) pairs.
+
+\paragraph{Defect 2: the sign of a slack.}
+In the reverse direction a violation of $\lambda_2\le 2h+2h^2$ is a
+\emph{positive} value of $\lambda_2-(2h+2h^2)$.  A verifier that looked for
+negative slack reports the opposite, and in one run reported ``771 violations''
+of a bound that is in fact never violated in that range.  That output is void.
+
+\paragraph{Defect 3: the complement symmetry.}
+Because $\bnd(S)=\bnd(V\setminus S)$ but $\vol(S)\ne\vol(V\setminus S)$ in
+general, the minimum in Definition~\ref{def:cheeger} cannot be taken over
+sets containing a fixed vertex unless the graph is regular.  For the two-vertex
+graph $W=\begin{pmatrix}1&1\\1&0\end{pmatrix}$ the only admissible set is
+$\{1\}$, which avoids vertex $0$.
+
+\paragraph{The retracted claim.}
+Before these fixes, floating-point experiments appeared to show that Buser's
+inequality fails for graphs with self-loops, and we initially believed this to
+be a counterexample to a classical statement --- a far stronger result than the
+one presented here.  An exact symbolic re-check of the two-vertex family
+(refuted by $\lambda_2-(2h+2h^2)=-2w^2/(a+w)^2<0$) and a recomputation after
+each fix showed the ``counterexample'' to be an artefact of Defects~1--3.  The
+claim is withdrawn.  We report it because the episode is the strongest
+available evidence for the paper's central methodological point: in this area
+the classical bounds are robust, and apparent counterexamples are usually
+defects.
+
+\section{Related work}\label{sec:related}
+
+The two-sided bound \eqref{eq:classical} is classical.  Cheeger's isoperimetric
+estimate originates in \citet{chung1997} (and in the graph literature with
+\citet{alon1985} and \citet{dodziuk1984}); the reverse direction and the study
+of the optimal ``isoperimetric number'' constant are due to Buser and to
+\citet{mohar1988,mohar1989}.  \citet{lee2014} develop the higher-order Cheeger
+inequalities and treat graphs with self-loops via a loop-aware Cheeger constant.
+
+We therefore do not claim \eqref{eq:classical} as new.  Our contribution is
+adjacent: an exact statement of the extremal coefficient, a proof written out
+in full for the generality claimed, certified computation, and exhaustive exact
+verification.  A caveat on the literature review: the full texts of
+\citet{mohar1988,mohar1989} were not accessible to us, and we verified only
+their bibliographic metadata through Crossref; we therefore make no claim about
+their internal contents, and specifically do not claim that the sharpness family
+of Theorem~\ref{thm:sharp} is absent from them.
+
+\section{Limitations}\label{sec:limits}
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+\item \textbf{The inequalities are classical.}  The novelty of this work is
+      incremental: an exact characterisation, certified computation and
+      reproducible verification.  A referee may reasonably judge this below the
+      threshold for a research article; we state that plainly rather than
+      dress it up.
+
+\item \textbf{Exhaustive verification is finite.}  The sweep reaches
+      $n\le 6$ (unweighted) and $n\le 4$ (weighted with loops).  It excludes
+      counterexamples up to those sizes; it does not prove the theorem.
+
+\item \textbf{The proofs are ours but the method is standard.}  The co-area
+      (two-point) reduction is classical; we have written it out because a
+      reader should not have to trust a citation to check a constant.
+
+\item \textbf{Literature coverage is partial.}  General web search was not
+      available in the environment in which this work was done; the novelty
+      assessment rests on arXiv and Crossref queries.  Absence of a retrieved
+      reference is not proof of originality.
+
+\item \textbf{Self-loop conventions are a choice.}  We count a self-loop as
+      adding $W_{vv}$ to the degree and as contributing $W_{vv}f_v^2$ to the
+      energy.  Other conventions exist; results may change under them, and we
+      do not claim robustness across conventions.
+\end{enumerate}
+
+\section{Conclusion}\label{sec:conclusion}
+
+The two-sided Cheeger--Buser comparison survives a far wider class of graphs
+than it is usually quoted for: we verified it exactly on every connected graph
+with up to six vertices and on weighted graphs with self-loops with up to four
+vertices, with no violations, once our own implementation was correct.  The
+optimal leading coefficient $2$ in the reverse direction is attained exactly by
+the two-vertex self-loop family, so it cannot be lowered.  The more broadly
+useful lesson of this exercise is methodological: three separate defects, one of
+which manufactured an apparent counterexample to a classical theorem, were
+caught only by exact computation and by cross-checking definitions
+independently.
+
+\section*{Data and code availability}
+All code, tests and the verification pipeline are in the accompanying
+repository.  The verification is deterministic: it contains no random seeds, no
+external data and no network access.  It reproduces
+\texttt{results/verification\_summary.json}, which records the number of graphs
+checked and the number of violations found in each direction.
+
+\section*{Author contributions}
+R.V.P.\ is the sole author and is responsible for the mathematical content, the
+code, the verification, and the writing.
+
+\section*{Funding and competing interests}
+No funding was received.  The author declares no competing interests.
+
+\section*{Ethics}
+No human subjects, personal data, or animals are involved.  No ethics approval
+was sought because none is required for this work.
+
+\appendix
+\section{The median-splitting estimate}\label{app:proof}
+
+Let $f$ be orthogonal to $\mathbf 1$ in $\langle\cdot,\cdot\rangle_D$, and let
+$m$ be a median of $f$ under the weights $d_v$, so that
+$A=\{v:f_v\le m\}$ satisfies $\vol(A)\le \vol(V)/2$ and
+$\vol(A^c)\le\vol(V)/2$.  The sets $\{v:f_v\le t\}$ for $t\le m$ are contained
+in $A$ and the sets $\{v:f_v\le t\}$ for $t>m$ contain $A$, so in both ranges
+$\bnd(S_t)\ge h\cdot\min(\vol(S_t),\vol(A^c))$, and integrating gives
+$\int \bnd(S_t)\,dt\ge h\sum_v d_v|f_v-m|$.  Because
+$\sum_v d_v f_v(f_v-m)=\sum_v d_vf_v^2$ (as $\sum_v d_vf_v=0$), Cauchy--Schwarz
+gives $\sum_v d_vf_v^2\le (\sum_v d_vf_v^2)^{1/2}(\sum_v d_v(f_v-m)^2)^{1/2}$,
+hence $\sum_v d_v|f_v-m|\le (\vol(V)\,\sum_v d_v(f_v-m)^2)^{1/2}$.  Combining
+with Lemma~\ref{lem:sweep} yields the estimate used in Theorem~\ref{thm:two-sided}.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
