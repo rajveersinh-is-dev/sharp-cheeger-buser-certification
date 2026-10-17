@@ -58,9 +58,10 @@ The classical answer, quoted for *regular, loop-free* graphs, is
 
 | Statement | Status |
 |---|---|
-| The two-sided inequality holds in the stated generality | **Verified**: proved in the manuscript, and exhaustively checked over the ranges above with **0 violations** |
+| The two-sided inequality holds in the stated generality | **Verified**: proved in the manuscript, and checked on **225 349** graphs with **0 violations** |
 | The constant `2` is optimal | **Verified**: proved exactly (Theorem 3.1) |
-| Exact sweep over all graphs `n <= 6` | **Verified**: `results/verification_summary.json` |
+| Exhaustive exact sweep, unweighted `n <= 6` | **Verified**: 27 475 graphs, 0 violations, `results/verification_summary.json` |
+| Exhaustive sweep, weighted with self-loops `n <= 4` | **Verified**: 197 874 graphs, 0 violations |
 | Novelty of the *inequalities* | **Classical** — not claimed as new |
 | Novelty of the overall package | **Incremental** — characterisation + certification |
 | Literature completeness | **Partial**: general web search was unavailable; see `research/literature_review.md` |
@@ -105,12 +106,23 @@ The verification is **deterministic**: no random seeds, no network access, no
 external data. Repeated runs produce byte-identical output apart from the
 `elapsed_seconds` field.
 
-Expected outcome of the full sweep:
+Expected outcome of the full sweep (verified 2026-10-18, ~335 s):
 
 ```
-total exact graphs verified : 27475 (unweighted) + weighted-with-loops
-total violations            : 0
-max lam2/h                  : 2.0   (attained exactly, Theorem 3.1)
+mode                      : certified
+unweighted n=2..6          :      1 +     4 +    38 +   728 + 26704 = 27475
+weighted+loops n=2..4     :     18 +   864 + 196992               = 197874
+total graphs verified     : 225349
+total violations          : 0
+max lam2/h                : 2.0000000000
+elapsed                   : 334.7s
+```
+
+To reproduce with **exact** characteristic polynomials instead of the
+certified high-precision path (much slower, no floating point in any decision):
+
+```bash
+python experiments/run_verification.py --mode exact --quick
 ```
 
 ### Building the PDF

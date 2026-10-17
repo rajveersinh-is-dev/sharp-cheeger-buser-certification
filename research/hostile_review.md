@@ -104,16 +104,41 @@ in the paper.
 
 ## R1.7 (Major) — "Exhaustive verification" is only up to `n = 6`
 
-*Objection.* Exhaustive verification on tiny graphs cannot establish a
+*Objection.* Exhaustive verification on small graphs cannot establish a
 theorem; presenting it as evidence for the theorem's truth overstates it.
 
 *Resolution.* Agreed, and the manuscript says so explicitly (§6 and §7): the
 computation can *refute* the statement but cannot *prove* it; the proof does
 that. The value of the sweep is stated as: it removes the possibility of a
-hidden counterexample up to `n = 6` (and `n = 4` with weights), and it
-independently validates the implementation.
+hidden counterexample up to `n = 6` unweighted and `n = 4` weighted (225 349
+graphs in total), and it independently validates the implementation.
 
 *Status.* **Resolved** by rewording; the limitation is disclosed.
+
+## R1.11 (Critical, found late) — A silent skip in the new fast path
+
+*Objection.* When a certified high-precision eigenvalue routine was added to
+make the sweep tractable, it decided connectedness by looking for eigenvalues
+near **0** of `M = D^{-1/2}WD^{-1/2}`. But `L = I - M`, so the graph is
+disconnected exactly when `M` has eigenvalue **1**. A zero eigenvalue of `M`
+means `lam2(L) = 1`, an entirely ordinary value. The bug silently classified
+those graphs as degenerate and skipped them: **8 of 864** graphs at `n = 3`,
+including the uniformly self-looped complete graphs, whose exact `lam2` values
+are `3/4` and `1`.
+
+*Why it is Critical.* A verification tool that quietly excludes cases cannot
+fail loudly. Had the counts not been cross-checked between the two modes, the
+sweep would have reported "0 violations" over a silently reduced graph set.
+
+*Resolution.* Fixed to test for eigenvalues near 1. Detected only because the
+exact and certified modes disagreed on the number of graphs examined — which is
+precisely the kind of cross-check this paper argues for. Two regression tests
+were added: `test_certified_path_covers_exactly_the_same_graphs` (coverage
+equality) and `test_certified_path_handles_uniform_loop_graph` (the specific
+graph). After the fix both modes cover exactly 864 graphs at `n = 3` with 0
+skipped, and disconnected inputs are still rejected by both.
+
+*Status.* **Resolved**, and reported as Defect 4 in the manuscript §7.
 
 ## R1.8 (Moderate) — Does `lambda2_exact` really return exact values?
 
@@ -254,6 +279,7 @@ and reports its own elapsed time.
 | R1.1 | Critical | Resolved — claims narrowed to characterisation/certification |
 | R1.2 | Critical | Resolved — boundary bug fixed, all results recomputed |
 | R1.3 | Critical | Resolved — verifier sign convention fixed; earlier output void |
+| R1.11 | Critical | Resolved — silent skip in the certified fast path fixed; regression tests added |
 | R1.4 | Major | Resolved — normalisation checked by construction and equality cases |
 | R1.5 | Major | Resolved — proofs written out in full |
 | R1.6 | Major | Resolved — sharpness family re-derived symbolically; ratio 2 identically |
@@ -269,9 +295,11 @@ and reports its own elapsed time.
 | R2.6 | Moderate | Resolved — reproducibility verified |
 | R2.7 | Minor | Resolved — `--quick` provided |
 
-**Overall.** Three Critical issues were found and fixed, all of them defects in
-my own work rather than in the mathematics. One Critical objection (R2.1) is
-**only partially** resolved and is carried into the limitations section: the
-scientific novelty of the contribution is incremental. The manuscript is
-therefore written to make no claim of a new inequality, and the final
-classification in the report reflects this.
+**Overall.** **Four** Critical issues were found and fixed, all of them defects
+in my own work rather than in the mathematics — the last one (R1.11) only after
+adding a faster verification path, and it was the most dangerous because it
+excluded graphs silently. One Critical objection (R2.1) is **only partially**
+resolved and is carried into the limitations section: the scientific novelty of
+the contribution is incremental. The manuscript is therefore written to make no
+claim of a new inequality, and the final classification in the report reflects
+this.

@@ -1,7 +1,7 @@
 {
-  "seed": 20261018,
-  "tolerance": 1e-12,
-  "exact_arithmetic": true,
+  "mode": "certified",
+  "exact_arithmetic_for_h": true,
+  "eigenvalue_method": "certified high-precision enclosure",
   "unweighted": {
     "2": {
       "graphs": 1,
@@ -17,6 +17,16 @@
       "graphs": 38,
       "buser_violations": 0,
       "cheeger_violations": 0
+    },
+    "5": {
+      "graphs": 728,
+      "buser_violations": 0,
+      "cheeger_violations": 0
+    },
+    "6": {
+      "graphs": 26704,
+      "buser_violations": 0,
+      "cheeger_violations": 0
     }
   },
   "weighted_with_loops": {
@@ -29,19 +39,28 @@
       "graphs": 864,
       "buser_violations": 0,
       "cheeger_violations": 0
+    },
+    "4": {
+      "graphs": 196992,
+      "buser_violations": 0,
+      "cheeger_violations": 0
     }
   },
   "violations": {
     "buser": [],
     "cheeger": []
   },
-  "max_ratio": {
-    "value": 2.0,
-    "n": 2,
-    "h": "1",
-    "lam2": "2"
+  "violation_examples": {
+    "buser": [],
+    "cheeger": []
   },
-  "total_exact_graphs": 925,
+  "max_ratio": {
+    "value": 2.000000000000625,
+    "n": 4,
+    "h": "4/7",
+    "lam2": "457142857143/400000000000"
+  },
+  "total_exact_graphs": 225349,
   "total_violations": 0,
-  "elapsed_seconds": 10.4
+  "elapsed_seconds": 334.7
 }

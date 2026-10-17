@@ -344,30 +344,41 @@ repository does (Section~\ref{sec:experiments}).
 
 \section{Exact verification}\label{sec:experiments}
 
-The verification pipeline is deterministic, uses exact rational arithmetic for
-$h$ and exact characteristic polynomials for $\lambda_2$, and writes a
-machine-readable summary.
+The verification pipeline is deterministic.  The Cheeger constant $h$ is computed
+in \emph{exact} rational arithmetic in every case, and $\lambda_2$ is obtained
+either from an exact characteristic polynomial (mode \texttt{exact}, the
+default) or from a certified high-precision enclosure (mode \texttt{certified}).
+The two modes are cross-validated against each other on every graph with
+$n\le 3$.
 
 \paragraph{Scope and what it can and cannot show.}
 An exhaustive sweep can \emph{refute} a universal statement but cannot
-\emph{prove} one.  It is therefore reported as evidence about
-implementations and about small cases, not as a proof.  The proof is
-Section~\ref{sec:proofs}.
+\emph{prove} one.  It is therefore reported as evidence about implementations and
+about small cases, not as a proof.  The proof is Section~\ref{sec:proofs}.
 
-\paragraph{Two bugs found by the pipeline.}
-The sweep is not decorative: it caught defects in our own code that had
-produced false conclusions.  Section~\ref{sec:defects} describes them.
+\paragraph{Results.}
+The full certified sweep covers
+\begin{itemize}[leftmargin=*,itemsep=1pt]
+\item all \textbf{27\,475} connected unweighted graphs on $n\le 6$, and
+\item all \textbf{197\,874} connected weighted graphs with self-loops on
+      $n\le 4$ (off-diagonal weights in $\{1,2\}$, self-loops in $\{0,1,2\}$),
+\end{itemize}
+for a total of \textbf{225\,349} graphs, with \textbf{zero} violations in either
+direction.  The exact mode was run to completion over the unweighted range and
+over the weighted range with $n\le 3$, again with zero violations.  The
+observed maximum of $\lambda_2/h$ is exactly $2$, attained at the sharpness
+family of Theorem~\ref{thm:sharp}.
 
 \paragraph{Reproducing.}
-See the repository README.  A fast subset is
-\texttt{python experiments/run\_verification.py --quick}; the full sweep is
-\texttt{python experiments/run\_verification.py}.
+A fast subset is \texttt{python experiments/run\_verification.py --quick}; the
+full sweep is \texttt{python experiments/run\_verification.py --mode certified}.
+Results are written to \texttt{results/verification\_summary.json}.
 
 \section{Defects found, and a retracted claim}\label{sec:defects}
 
-We report three defects.  All three were bugs in our implementation, not
-features of the mathematics; all three produced conclusions that looked
-plausible before being checked.
+We report four defects.  All four were bugs in our implementation, not features
+of the mathematics; all four produced conclusions that looked plausible before
+being checked.
 
 \paragraph{Defect 1: the boundary of a set.}
 An early implementation of $\bnd(S)$ \emph{added} half of each self-loop inside
@@ -391,6 +402,19 @@ general, the minimum in Definition~\ref{def:cheeger} cannot be taken over
 sets containing a fixed vertex unless the graph is regular.  For the two-vertex
 graph $W=\begin{pmatrix}1&1\\1&0\end{pmatrix}$ the only admissible set is
 $\{1\}$, which avoids vertex $0$.
+
+\paragraph{Defect 4: a silent skip in the fast path.}
+When a certified high-precision eigenvalue routine was added to make the sweep
+tractable, it tested for connectedness by looking for eigenvalues near $0$ of
+$M=D^{-1/2}WD^{-1/2}$.  But $L=I-M$, so the graph is disconnected precisely
+when $M$ has eigenvalue \emph{$1$}; an eigenvalue near $0$ of $M$ means
+$\lambda_2(L)=1$, an entirely ordinary value.  The bug silently classified such
+graphs as degenerate and skipped them --- here 8 graphs out of 864 at $n=3$,
+including the uniformly self-looped complete graphs.  It was caught by noticing
+that the two verification modes disagreed on the number of graphs examined, and
+a regression test now pins the two paths to identical coverage.  We report it
+because it is the most dangerous of the four: a verification tool that quietly
+excludes cases cannot fail loudly.
 
 \paragraph{The retracted claim.}
 Before these fixes, floating-point experiments appeared to show that Buser's

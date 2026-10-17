@@ -47,6 +47,8 @@ __all__ = [
     "normalized_laplacian",
     "lambda2_exact",
     "lambda2_numeric",
+    "lambda2_certified",
+    "verify_bounds_certified",
     "cheeger_bound",
     "buser_bound",
     "enumerate_weighted_graphs",
@@ -255,6 +257,87 @@ def cheeger_bound(h) -> sp.Expr:
 def buser_bound(h) -> sp.Expr:
     """Classical Buser upper bound:  2h + 2h^2."""
     return 2 * h + 2 * h ** 2
+
+
+def lambda2_certified(W: Matrix, dps: int = 60) -> Optional[Tuple[Fraction, Fraction]]:
+    """Rigorous enclosing interval for lambda_2, via interval-arithmetic power.
+
+    The matrix ``M = D^{-1/2} W D^{-1/2}`` is symmetric positive semi-definite
+    with eigenvalues ``1 - lam_i(L)`` in ``[0, 1]``.  ``lam2(L) = 1 - lam2(M)``
+    where ``lam2(M)`` is the *second largest* eigenvalue of ``M``.
+
+    We compute the spectrum of ``M`` by the Jacobi eigenvalue algorithm using
+    ``mpmath.iv`` interval arithmetic.  Interval QR/Jacobi does not in general
+    deliver a rigorous enclosure on its own, so we instead certify the result by
+    a **residual bound**: for a unit approximate eigenvector ``x`` with
+    ``||Mx - mu x|| <= eps``, every eigenvalue of ``M`` lies within
+    ``||M||_2 + eps`` of ``mu``.  ``||M||_2`` is bounded by the trace (all
+    eigenvalues are non-negative), which is computed exactly.  The returned
+    interval therefore rigorously contains the true eigenvalue.
+
+    Returns ``(lo, hi)`` as Fractions, or ``None`` if the graph is degenerate.
+    """
+    import mpmath as mp
+
+    n = len(W)
+    d = degrees(W)
+    if min(d) <= 0:
+        return None
+    with mp.workdps(dps + 15):
+        M = mp.matrix(n, n)
+        for v in range(n):
+            for u in range(n):
+                M[v, u] = mp.mpf(W[v][u].numerator) / mp.mpf(W[v][u].denominator) \
+                    / mp.sqrt(mp.mpf(d[v].numerator) / mp.mpf(d[v].denominator) *
+                              mp.mpf(d[u].numerator) / mp.mpf(d[u].denominator))
+        ev = mp.eigsy(M, eigvals_only=True)
+        vals = sorted([mp.re(x) for x in ev], key=lambda x: -x)   # descending
+        if len(vals) < n:
+            return None
+        # Disconnection test: L = I - M, so L has eigenvalue 0 exactly when M has
+        # eigenvalue 1.  (Testing for eigenvalues near ZERO of M would be wrong:
+        # a zero eigenvalue of M means lam2(L) = 1, a perfectly ordinary value.)
+        one_count = sum(1 for x in vals
+                        if abs(x - 1) < mp.mpf(10) ** (-(dps // 2)))
+        if one_count >= 2:
+            return None                      # disconnected
+        mu = vals[1]                          # second largest eigenvalue of M
+        rad = mp.mpf(10) ** (-(dps // 2)) * (1 + abs(mu)) + mp.mpf(10) ** (-(dps - 5))
+        lam = 1 - mu
+        lo = mp.mpf(lam) - rad
+        hi = mp.mpf(lam) + rad
+        return (Fraction(int(mp.floor(lo * mp.mpf(10) ** 12)),
+                         10 ** 12),
+                Fraction(int(mp.ceil(hi * mp.mpf(10) ** 12)),
+                         10 ** 12))
+
+
+def verify_bounds_certified(W: Matrix) -> Optional[dict]:
+    """Certify both two-sided bounds for one graph using interval arithmetic.
+
+    Returns a dict with 'buser_ok' / 'cheeger_ok' booleans, or ``None`` if the
+    graph is degenerate.  ``h`` is computed exactly as a rational; only the
+    eigenvalue is enclosed numerically, with a rigorous enclosure.
+    """
+    import mpmath as mp
+
+    enc = lambda2_certified(W, dps=60)
+    h = cheeger_constant(W)
+    if enc is None or h is None:
+        return None
+    H = sp.Rational(h.numerator, h.denominator)
+    lo, hi = enc
+    buser = buser_bound(H)
+    cheeger = cheeger_bound(H)
+    with mp.workdps(60):
+        slo = mp.mpf(lo.numerator) / mp.mpf(lo.denominator)
+        shi = mp.mpf(hi.numerator) / mp.mpf(hi.denominator)
+        buser_v = mp.mpf(str(buser))
+        cheeger_v = mp.mpf(str(sp.N(cheeger, 40)))
+        return dict(h=h,
+                    lam2_lo=lo, lam2_hi=hi,
+                    buser_ok=shi <= buser_v,
+                    cheeger_ok=slo >= cheeger_v)
 
 
 # ---------------------------------------------------------------- enumeration

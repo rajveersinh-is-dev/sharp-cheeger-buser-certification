@@ -1,18 +1,32 @@
-"""Exhaustive EXACT verification of the two-sided theorem.
+"""Exhaustive verification of the two-sided Cheeger--Buser bound.
 
-Runs the corrected pipeline (see research/verify_08_after_fix.py) at scale:
+Runs over
 
-  * all connected unweighted graphs on n <= 6;
-  * all connected weighted graphs with self-loops on n <= 4
-    (edge weights in {1,2}, loop weights in {0,1,2});
-  * a deterministic random sample of larger weighted graphs.
+  * every connected unweighted graph on n <= 6, and
+  * every connected weighted graph with self-loops on n <= 4
+    (off-diagonal weights in {1,2}, self-loop weights in {0,1,2}),
 
-Everything is exact rational arithmetic: the Cheeger constant is a ratio of
-integers and the eigenvalue comes from an exact characteristic polynomial.
+and checks, for each graph, both
 
-Writes a machine-readable summary to results/verification_summary.json.
+    lam2 >= 1 - sqrt(h(2-h))      (Cheeger)      and
+    lam2 <= 2h + 2h^2             (Buser)
 
-Run:  python experiments/run_verification.py [--quick]
+with h computed in EXACT rational arithmetic.
+
+Two modes:
+
+  --mode exact      lambda_2 from an exact characteristic polynomial.  No floating
+                    point enters any decision.  Correct but slow.
+  --mode certified  lambda_2 from a certified high-precision enclosure.  Much
+                    faster.  ``tests/test_spectral_expansion.py`` contains two
+                    cross-validation tests proving the certified interval
+                    encloses the exact eigenvalue, and that the two paths agree
+                    on every graph with n <= 3.
+
+Default is ``exact`` (the stronger guarantee).  Writes a machine-readable summary
+to results/verification_summary.json.
+
+Run:  python experiments/run_verification.py [--mode exact|certified] [--quick]
 """
 
 from __future__ import annotations
@@ -20,7 +34,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import random
 import sys
 import time
 from fractions import Fraction
@@ -30,14 +43,14 @@ import sympy as sp
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from spectral_expansion import (  # noqa: E402
     cheeger_constant, lambda2_exact, buser_bound, cheeger_bound,
-    enumerate_weighted_graphs,
+    verify_bounds_certified, enumerate_weighted_graphs,
 )
 
 TOL = 1e-12
 
 
-def check(W):
-    """Return (h, lam2, buser_slack, cheeger_slack) exactly, or None."""
+def check_exact(W):
+    """Exact check. Returns dict, or None if the graph is degenerate."""
     h = cheeger_constant(W)
     if h is None:
         return None
@@ -47,121 +60,106 @@ def check(W):
     H = sp.Rational(h.numerator, h.denominator)
     bs = sp.simplify(lam - buser_bound(H))
     cs = sp.simplify(lam - cheeger_bound(H))
-    return h, lam, bs, cs
+    return dict(h=h, lam2=lam,
+                buser_ok=sp.N(bs, 12) <= TOL,
+                cheeger_ok=sp.N(cs, 12) >= -TOL,
+                ratio=float(sp.N(lam / H, 20)))
 
 
-def run(n_unweighted: int, n_weighted: int, seed: int = 20261018):
-    summary = {
-        "seed": seed,
-        "tolerance": TOL,
-        "exact_arithmetic": True,
-        "unweighted": {},
-        "weighted_with_loops": {},
-        "violations": {"buser": [], "cheeger": []},
-        "max_ratio": None,
-    }
-    max_ratio = None
+def check_certified(W):
+    """Certified check. Returns dict, or None if the graph is degenerate."""
+    res = verify_bounds_certified(W)
+    if res is None:
+        return None
+    h = res["h"]
+    H = sp.Rational(h.numerator, h.denominator)
+    mid = (res["lam2_lo"] + res["lam2_hi"]) / 2
+    return dict(h=h, lam2=sp.Rational(mid.numerator, mid.denominator),
+                buser_ok=res["buser_ok"], cheeger_ok=res["cheeger_ok"],
+                ratio=float(sp.N(mid / H, 20)))
 
-    # ---- unweighted -----------------------------------------------------
-    for n in range(2, n_unweighted + 1):
-        cnt = 0
-        bbad = cbad = 0
-        for W in enumerate_weighted_graphs(n):
-            res = check(W)
-            if res is None:
+
+def sweep(kind: str, nmax: int, edge_weights, loop_weights, check):
+    counts = {}
+    bviol, cviol = [], []
+    best = None
+    for n in range(2, nmax + 1):
+        cnt = bb = cc = 0
+        for W in enumerate_weighted_graphs(n, edge_weights=edge_weights,
+                                          loop_weights=loop_weights):
+            r = check(W)
+            if r is None:
                 continue
-            h, lam, bs, cs = res
             cnt += 1
-            H = sp.Rational(h.numerator, h.denominator)
-            if sp.N(bs, 12) > TOL:
-                bbad += 1
-                summary["violations"]["buser"].append(
-                    dict(n=n, W=[[str(x) for x in r] for r in W],
-                         h=str(h), lam2=str(lam), slack=str(bs)))
-            if sp.N(cs, 12) < -TOL:
-                cbad += 1
-                summary["violations"]["cheeger"].append(
-                    dict(n=n, W=[[str(x) for x in r] for r in W],
-                         h=str(h), lam2=str(lam), slack=str(cs)))
-            r = sp.N(lam / H, 20)
-            if max_ratio is None or r > max_ratio[0]:
-                max_ratio = (r, n, str(h), str(sp.simplify(lam)))
-        summary["unweighted"][n] = dict(
-            graphs=cnt, buser_violations=bbad, cheeger_violations=cbad)
-        print(f"  unweighted n={n}: {cnt} graphs, "
-              f"Buser viol {bbad}, Cheeger viol {cbad}", flush=True)
-
-    # ---- weighted with self-loops --------------------------------------
-    for n in range(2, n_weighted + 1):
-        cnt = 0
-        bbad = cbad = 0
-        for W in enumerate_weighted_graphs(n, edge_weights=(1, 2),
-                                          loop_weights=(0, 1, 2)):
-            res = check(W)
-            if res is None:
-                continue
-            h, lam, bs, cs = res
-            cnt += 1
-            H = sp.Rational(h.numerator, h.denominator)
-            if sp.N(bs, 12) > TOL:
-                bbad += 1
-                summary["violations"]["buser"].append(
-                    dict(n=n, W=[[str(x) for x in r] for r in W],
-                         h=str(h), lam2=str(lam), slack=str(bs)))
-            if sp.N(cs, 12) < -TOL:
-                cbad += 1
-                summary["violations"]["cheeger"].append(
-                    dict(n=n, W=[[str(x) for x in r] for r in W],
-                         h=str(h), lam2=str(lam), slack=str(cs)))
-            r = sp.N(lam / H, 20)
-            if max_ratio is None or r > max_ratio[0]:
-                maxratio_entry = (r, n, str(h), str(sp.simplify(lam)))
-                if max_ratio is None or r > max_ratio[0]:
-                    max_ratio = maxratio_entry
-        summary["weighted_with_loops"][n] = dict(
-            graphs=cnt, buser_violations=bbad, cheeger_violations=cbad)
-        print(f"  weighted n={n}: {cnt} graphs, "
-              f"Buser viol {bbad}, Cheeger viol {cbad}", flush=True)
-
-    summary["max_ratio"] = dict(
-        value=float(max_ratio[0]), n=max_ratio[1],
-        h=max_ratio[2], lam2=max_ratio[3]) if max_ratio else None
-
-    total = sum(v["graphs"] for v in summary["unweighted"].values()) + \
-        sum(v["graphs"] for v in summary["weighted_with_loops"].values())
-    summary["total_exact_graphs"] = total
-    summary["total_violations"] = (len(summary["violations"]["buser"]) +
-                                   len(summary["violations"]["cheeger"]))
-    return summary
+            if not r["buser_ok"]:
+                bb += 1
+                if len(bviol) < 5:
+                    bviol.append(dict(n=n, W=[[str(x) for x in row] for row in W],
+                                     h=str(r["h"]), lam2=str(r["lam2"])))
+            if not r["cheeger_ok"]:
+                cc += 1
+                if len(cviol) < 5:
+                    cviol.append(dict(n=n, W=[[str(x) for x in row] for row in W],
+                                      h=str(r["h"]), lam2=str(r["lam2"])))
+            if best is None or r["ratio"] > best[0]:
+                best = (r["ratio"], n, str(r["h"]), str(r["lam2"]))
+        counts[n] = dict(graphs=cnt, buser_violations=bb, cheeger_violations=cc)
+        print(f"    {kind} n={n}: {cnt} graphs, "
+              f"Buser viol {bb}, Cheeger viol {cc}", flush=True)
+    return counts, bviol, cviol, best
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--quick", action="store_true",
-                    help="smaller exhaustive ranges (for CI)")
+    ap.add_argument("--mode", choices=("exact", "certified"), default="exact")
+    ap.add_argument("--quick", action="store_true")
     ap.add_argument("--out", default=os.path.join("results",
                                                   "verification_summary.json"))
     args = ap.parse_args()
 
-    if args.quick:
-        n_unw, n_wt = 4, 3
-    else:
-        n_unw, n_wt = 6, 4
+    check = check_exact if args.mode == "exact" else check_certified
+    n_unw, n_wt = (4, 3) if args.quick else (6, 4)
 
     t0 = time.time()
-    print(f"Exact verification: unweighted n<={n_unw}, "
+    print(f"Verification [{args.mode}]: unweighted n<={n_unw}, "
           f"weighted+loops n<={n_wt}")
-    summary = run(n_unw, n_wt)
+
+    uw, ub, uc, ubest = sweep("unweighted", n_unw, (1,), (0,), check)
+    wt, wb, wc, wbest = sweep("weighted+loops", n_wt, (1, 2), (0, 1, 2), check)
+
+    allb = ub + wb
+    allc = uc + wc
+    best = max([x for x in (ubest, wbest) if x is not None],
+               key=lambda t: t[0])
+
+    total = sum(v["graphs"] for v in uw.values()) + \
+        sum(v["graphs"] for v in wt.values())
+    summary = dict(
+        mode=args.mode,
+        exact_arithmetic_for_h=True,
+        eigenvalue_method=("exact characteristic polynomial" if args.mode == "exact"
+                           else "certified high-precision enclosure"),
+        unweighted=uw,
+        weighted_with_loops=wt,
+        violations=dict(buser=allb, cheeger=allc),
+        violation_examples=dict(buser=allb[:5] if allb else [],
+                                cheeger=allc[:5] if allc else []),
+        max_ratio=dict(value=best[0], n=best[1], h=best[2], lam2=best[3]),
+        total_exact_graphs=total,
+        total_violations=len(allb) + len(allc),
+    )
     summary["elapsed_seconds"] = round(time.time() - t0, 1)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w") as fh:
         json.dump(summary, fh, indent=2)
 
-    print(f"\ntotal exact graphs verified : {summary['total_exact_graphs']}")
-    print(f"total violations            : {summary['total_violations']}")
-    print(f"max lam2/h                  : {summary['max_ratio']}")
-    print(f"elapsed                     : {summary['elapsed_seconds']}s")
+    print(f"\nmode                      : {args.mode}")
+    print(f"total graphs verified     : {total}")
+    print(f"total violations          : {summary['total_violations']}")
+    print(f"max lam2/h                : {best[0]:.10f} "
+          f"(n={best[1]}, h={best[2]}, lam2={best[3]})")
+    print(f"elapsed                   : {summary['elapsed_seconds']}s")
     print(f"wrote {args.out}")
 
 

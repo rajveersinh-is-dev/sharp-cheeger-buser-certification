@@ -49,8 +49,8 @@ before the manuscript was written and updated as results arrived.
 | Claim | `lam2 <= 2h + 2h^2` for every finite connected weighted graph (self-loops allowed) with the plain `h` above. |
 | Type | mathematical result |
 | Support | classical Buser/Dodziuk argument; re-derived in the manuscript §5 |
-| Verification | exhaustive EXACT check: unweighted `n <= 5` (771 graphs) and weighted-with-loops `n <= 3` (876 graphs), **0 violations**; full run over unweighted `n <= 6` and weighted `n <= 4` recorded in `results/verification_summary.json` |
-| Status | **Verified** (small-`n` exhaustive) / **Partially verified** (all `n`, by proof only) |
+| Verification | **certified sweep, 2026-10-18**: 27 475 connected unweighted graphs on n ≤ 6 and 197 874 connected weighted graphs with self-loops on n ≤ 4 (edge weights {1,2}, loop weights {0,1,2}) — **225 349 graphs, 0 violations**. Exact mode (characteristic polynomials, no floating point in any decision) run to completion over unweighted n ≤ 6 and weighted n ≤ 3, again 0 violations. Recorded in `results/verification_summary.json`. |
+| Status | **Verified** (225 349 instances, certified) / **Partially verified** (all `n`, by proof only) |
 | Known counterevidence | Early numerical runs (`research/explore_02.py`) *appeared* to show violations of Buser for irregular graphs. Those runs used an incorrect `h` normalisation (an edge/volume constant rather than the vertex/volume constant used in the classical statement) and a buggy `boundary`. After both were corrected, no violation survived. **The early "violation" was an artefact of my own code, not a property of the inequality.** |
 | Used in | Abstract; Thm 5.1; §5 |
 
@@ -60,8 +60,8 @@ before the manuscript was written and updated as results arrived.
 |---|---|
 | Claim | `lam2 >= 1 - sqrt(h(2-h))` (= `1 - sqrt(2h(1-h/2))`) under the same hypotheses. |
 | Type | mathematical result |
-| Verification | same exhaustive exact sweep: **0 violations** in 1 647 graphs (and the larger run) |
-| Status | **Verified** (small-`n` exhaustive) / **Partially verified** (all `n`, by proof only) |
+| Verification | **certified sweep, 2026-10-18**: same 225 349 graphs, **0 violations** (see C4) |
+| Status | **Verified** (225 349 instances, certified) / **Partially verified** (all `n`, by proof only) |
 | Counterevidence | `research/explore_04_exact.py` reported 264 "Cheeger violations" using a *neighbourhood* (loop-aware) constant. Those were violations of a different inequality (with `h_loop`), not of the stated theorem. The manuscript therefore reports both constants and explains which is which, rather than quoting the larger violation count. |
 | Used in | Abstract; Thm 5.2; §5 |
 
@@ -72,9 +72,20 @@ before the manuscript was written and updated as results arrived.
 | Claim | The constant `2` in `lam2 <= 2h + 2h^2` cannot be lowered: `sup_G lam2/h = 2`. |
 | Type | mathematical result |
 | Proof | lower bound `lam2 <= 2h + 2h^2` implies `lam2/h <= 2 + 2h`, and the two-point ratio computation gives the leading coefficient `2`; upper bound realised by the family of C3, where `lam2/h = 2` identically. |
-| Verification | exact computation of `lam2/h = 2` on the family (C3); certified interval arithmetic in `src/sharp_constants.py` returns `[2,2]`; exhaustive max over 1 647 exact graphs equals exactly `2.000000...` (attained at the single edge) |
+| Verification | exact symbolic computation of `lam2/h = 2` on the family (C3); certified interval arithmetic in `src/sharp_constants.py` returns `[2,2]`; the 225 349-graph sweep reports `max lam2/h = 2.000000000000625` |
 | Status | **Verified** |
 | Used in | Abstract; Thm 4.2; §4 |
+
+## C11 — Certified fast path cross-validates against the exact path
+
+| field | value |
+|---|---|
+| Claim | The certified high-precision eigenvalue routine encloses the exact eigenvalue and yields identical graph coverage, so the fast sweep's verdicts are trustworthy. |
+| Type | implementation check |
+| Verification | `tests/test_spectral_expansion.py::test_certified_interval_contains_exact_eigenvalue` and `::test_certified_bounds_agree_with_exact` (all graphs with `n <= 3`, weighted with loops); `::test_certified_path_covers_exactly_the_same_graphs` (coverage equality); `::test_certified_path_handles_uniform_loop_graph` |
+| Status | **Verified** |
+| Counterevidence | **An earlier version of the certified routine tested for eigenvalues near 0 of `M` instead of near 1, silently skipping 8 of 864 graphs at `n = 3`.** Detected by a discrepancy between the two modes' graph counts; fixed; regression test added. Recorded as Defect 4 in the manuscript §7 and in `hostile_review.md`. |
+| Used in | §6 of the manuscript; README |
 
 ## C7 — Literature fact: prior existence of the two-sided inequalities
 

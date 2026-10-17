@@ -209,6 +209,85 @@ def test_boundary_identity_small_fast():
                                               - 2 * Ein - loops)
 
 
+def test_certified_interval_contains_exact_eigenvalue():
+    """The certified interval must enclose the exact value on every graph.
+
+    This is the cross-validation that justifies using the (much faster)
+    certified path for the large sweep: if the interval ever excluded the exact
+    eigenvalue, the sweep's verdicts could not be trusted.
+    """
+    from spectral_expansion import lambda2_certified
+    checked = 0
+    for n in (2, 3):
+        for W in enumerate_weighted_graphs(n, edge_weights=(1, 2),
+                                          loop_weights=(0, 1, 2)):
+            ex = lambda2_exact(W)
+            enc = lambda2_certified(W)
+            if ex is None or enc is None:
+                continue
+            lo, hi = enc
+            exv = float(sp.N(ex, 25))
+            assert float(lo) - 1e-9 <= exv <= float(hi) + 1e-9, \
+                f"interval [{lo},{hi}] excludes exact {ex}"
+            checked += 1
+    assert checked > 100
+
+
+def test_certified_bounds_agree_with_exact():
+    """Where the certified path says a bound holds, the exact path must agree."""
+    from spectral_expansion import verify_bounds_certified
+    checked = 0
+    for n in (2, 3):
+        for W in enumerate_weighted_graphs(n, edge_weights=(1, 2),
+                                          loop_weights=(0, 1, 2)):
+            r = verify_bounds_certified(W)
+            h = cheeger_constant(W)
+            ex = lambda2_exact(W)
+            if r is None or h is None or ex is None:
+                continue
+            H = sp.Rational(h.numerator, h.denominator)
+            assert sp.N(ex - buser_bound(H), 12) <= 1e-12, "exact Buser violated"
+            assert sp.N(ex - cheeger_bound(H), 12) >= -1e-12
+            checked += 1
+    assert checked > 100
+
+
+def test_certified_path_covers_exactly_the_same_graphs():
+    """Regression test for a bug that made the fast path silently skip graphs.
+
+    ``L = I - M`` with ``M = D^-1/2 W D^-1/2``, so the graph is disconnected
+    exactly when ``M`` has eigenvalue **1** -- not 0.  An early version of the
+    certified routine tested for eigenvalues near 0 of ``M``, which wrongly
+    classified every graph with ``lam2(L) = 1`` (for instance the complete
+    weighted graph with a uniform self-loop) as degenerate and skipped it.
+    This test pins the two paths to identical coverage.
+    """
+    from spectral_expansion import lambda2_certified
+    for n in (2, 3):
+        n_exact = n_cert = 0
+        for W in enumerate_weighted_graphs(n, edge_weights=(1, 2),
+                                          loop_weights=(0, 1, 2)):
+            exact_ok = (cheeger_constant(W) is not None
+                        and lambda2_exact(W) is not None)
+            cert_ok = lambda2_certified(W) is not None
+            n_exact += bool(exact_ok)
+            n_cert += bool(cert_ok)
+        assert n_exact == n_cert, f"n={n}: exact {n_exact} vs certified {n_cert}"
+
+
+def test_certified_path_handles_uniform_loop_graph():
+    """The specific graph the regression test above was written for."""
+    from spectral_expansion import lambda2_certified
+    W = [[Fraction(2), Fraction(1), Fraction(1)],
+         [Fraction(1), Fraction(2), Fraction(1)],
+         [Fraction(1), Fraction(1), Fraction(2)]]
+    ex = sp.simplify(lambda2_exact(W))
+    enc = lambda2_certified(W)
+    assert ex is not None and enc is not None
+    lo, hi = enc
+    assert float(lo) - 1e-9 <= float(sp.N(ex, 25)) <= float(hi) + 1e-9
+
+
 def test_enumeration_only_yields_connected():
     for n in (2, 3):
         for W in enumerate_weighted_graphs(n, edge_weights=(1, 2),

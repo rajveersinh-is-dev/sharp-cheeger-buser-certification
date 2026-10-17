@@ -26,7 +26,9 @@ environment. Theorem 3.1 of the manuscript is precisely the kind of statement
 such a paper contains. **We therefore do not claim it is new.**
 
 **L4 — Exhaustive verification can refute, not prove.**
-The sweep reaches `n <= 6` (unweighted) and `n <= 4` (weighted with loops). It
+The sweep reaches `n <= 6` (unweighted, 27 475 graphs) and `n <= 4` (weighted
+with self-loops, 197 874 graphs), covering **225 349 graphs with zero
+violations**. It
 excludes counterexamples up to those sizes and validates the implementation; it
 does not establish the theorem for all graphs. The proof does that.
 
@@ -46,13 +48,15 @@ under them and we do not claim robustness across conventions.
 
 **L7 — A false counterexample was produced and retracted.**
 Early floating-point experiments appeared to show Buser's inequality failing for
-graphs with self-loops. It did not. Three defects in our own code were
+graphs with self-loops. It did not. Four defects in our own code were
 responsible: (1) `boundary()` added half of each internal self-loop instead of
 excluding it; (2) the verifier used the wrong sign for "slack"; (3) the Cheeger
 minimum was restricted to sets containing a fixed vertex, which is invalid
-unless the graph is regular. All three were fixed and everything was recomputed.
-The retraction is documented in the manuscript (§7), the evidence ledger (C4)
-and `novelty_assessment.md`.
+unless the graph is regular; (4) the certified fast eigenvalue path tested for
+eigenvalues near 0 of `M = D^{-1/2}WD^{-1/2}` instead of near 1, silently
+skipping 8 of 864 graphs at `n = 3`. All four were fixed and everything was
+recomputed. The retraction is documented in the manuscript (§7), the evidence
+ledger (C4, C11) and `novelty_assessment.md`.
 
 **L8 — `lambda2_exact` uses a numeric tolerance to recognise exact zeros.**
 Eigenvalues themselves come from exact characteristic polynomials, so the
