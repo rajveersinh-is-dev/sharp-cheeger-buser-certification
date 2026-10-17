@@ -1,0 +1,51 @@
+{
+  "mode": "exact",
+  "exact_arithmetic_for_h": true,
+  "eigenvalue_method": "exact characteristic polynomial",
+  "unweighted": {
+    "2": {
+      "graphs": 1,
+      "buser_violations": 0,
+      "cheeger_violations": 0
+    },
+    "3": {
+      "graphs": 4,
+      "buser_violations": 0,
+      "cheeger_violations": 0
+    },
+    "4": {
+      "graphs": 38,
+      "buser_violations": 0,
+      "cheeger_violations": 0
+    }
+  },
+  "weighted_with_loops": {
+    "2": {
+      "graphs": 18,
+      "buser_violations": 0,
+      "cheeger_violations": 0
+    },
+    "3": {
+      "graphs": 864,
+      "buser_violations": 0,
+      "cheeger_violations": 0
+    }
+  },
+  "violations": {
+    "buser": [],
+    "cheeger": []
+  },
+  "violation_examples": {
+    "buser": [],
+    "cheeger": []
+  },
+  "max_ratio": {
+    "value": 2.0,
+    "n": 2,
+    "h": "1",
+    "lam2": "2"
+  },
+  "total_exact_graphs": 925,
+  "total_violations": 0,
+  "elapsed_seconds": 10.5
+}
