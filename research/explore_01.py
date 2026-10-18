@@ -26,6 +26,8 @@ import sys
 import numpy as np
 
 
+
+
 def subsets_containing(n: int, pivot: int = 0):
     """All subsets of {0..n-1} containing `pivot`.
 
@@ -40,7 +42,7 @@ def subsets_containing(n: int, pivot: int = 0):
     return out
 
 
-def analyse_graph(nbr, subs):
+def analyse_graph(nbr, subs) -> tuple:
     """Return (lam2, lam2_comb, h_edge, h_vert) or None if disconnected."""
     n = len(nbr)
     deg = [bin(x).count("1") for x in nbr]
@@ -78,9 +80,9 @@ def analyse_graph(nbr, subs):
         volC = volV - volS
 
         e_in = 0
-        for a in range(len(S)):
+        for a, item in enumerate(S):
             for b in range(a + 1, len(S)):
-                if (nbr[S[a]] >> S[b]) & 1:
+                if (nbr[item] >> S[b]) & 1:
                     e_in += 1
         bnd = volS - 2 * e_in
         den = min(volS, volC)
@@ -104,6 +106,16 @@ def analyse_graph(nbr, subs):
 
 
 def adj_string(nbr, n):
+    """Adj string.
+    
+    Args:
+        nbr:
+        n:
+    
+    Returns:
+        The computed result
+    
+    """
     rows = []
     for i in range(n):
         rows.append("".join("1" if (nbr[i] >> j) & 1 else "0" for j in range(n)))
@@ -111,6 +123,9 @@ def adj_string(nbr, n):
 
 
 def main():
+    """Entry point — parse arguments and run the main computation.
+    
+    """
     max_n = int(sys.argv[1]) if len(sys.argv) > 1 else 6
     recs = []
     for n in range(2, max_n + 1):
@@ -147,6 +162,16 @@ def main():
         r["r_vratio"] = r["lam2"] / r["h_vert"] if r["h_vert"] > 0 else float("nan")
 
     def show(title, key, k=10, rev=True, filt=None):
+        """Show.
+        
+        Args:
+            title:
+            key:
+            k (int):
+            rev (bool):
+            filt:
+        
+        """
         rs = recs if filt is None else [r for r in recs if filt(r)]
         rs = sorted(rs, key=lambda r: r[key], reverse=rev)[:k]
         print(f"--- top {k} by {key} ({title}) ---")
