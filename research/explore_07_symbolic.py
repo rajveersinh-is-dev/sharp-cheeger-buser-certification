@@ -22,10 +22,24 @@ Run:  python research/explore_07_symbolic.py
 
 from __future__ import annotations
 
+
 import sympy as sp
 
 
-def analyse(a_name="a", w_name="w", a_pos=True, w_pos=True):
+
+def analyse(a_name="a", w_name="w", a_pos=True, w_pos=True) -> dict:
+    """Analyse.
+    
+    Args:
+        a_name (str):
+        w_name (str):
+        a_pos (bool):
+        w_pos (bool):
+    
+    Returns:
+        dict: Result of type dict
+    
+    """
     a = sp.Symbol(a_name, positive=True) if a_pos else sp.Symbol(a_name)
     w = sp.Symbol(w_name, positive=True) if w_pos else sp.Symbol(w_name)
 
