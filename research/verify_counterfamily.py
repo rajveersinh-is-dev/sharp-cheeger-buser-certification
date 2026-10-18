@@ -33,7 +33,9 @@ verdict.
 
 from __future__ import annotations
 
+
 import sympy as sp
+
 
 w = sp.symbols("w", positive=True)
 
