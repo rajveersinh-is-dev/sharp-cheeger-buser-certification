@@ -22,7 +22,6 @@ Run:  python research/explore_05_sharp_buser.py [n_unweighted] [n_weighted]
 from __future__ import annotations
 
 import sys
-from fractions import Fraction
 
 import sympy as sp
 
@@ -34,12 +33,18 @@ from spectral_expansion import (  # noqa: E402
 
 
 def main():
+    """Entry point — parse arguments and run the main computation.
+    
+    Returns:
+        The computed result
+    
+    """
     n_unw = int(sys.argv[1]) if len(sys.argv) > 1 else 5
     n_wt = int(sys.argv[2]) if len(sys.argv) > 2 else 4
 
     records = []
 
-    print("=== exact enumeration: unweighted, n <= %d ===" % n_unw, flush=True)
+    print(f"=== exact enumeration: unweighted, n <= {n_unw} ===", flush=True)
     for n in range(2, n_unw + 1):
         cnt = 0
         for W in enumerate_weighted_graphs(n):
@@ -53,7 +58,7 @@ def main():
             cnt += 1
         print(f"  n={n}: {cnt} connected graphs", flush=True)
 
-    print("\n=== exact enumeration: weighted with self-loops, n <= %d ===" % n_wt,
+    print(f"\n=== exact enumeration: weighted with self-loops, n <= {n_wt} ===",
           flush=True)
     for n in range(2, n_wt + 1):
         cnt = 0
@@ -73,6 +78,16 @@ def main():
 
     # ---- ratio lam2 / h -------------------------------------------------
     def ratio(h, lam):
+        """Ratio.
+        
+        Args:
+            h:
+            lam:
+        
+        Returns:
+            The computed result
+        
+        """
         return sp.N(lam / sp.Rational(h.numerator, h.denominator), 15)
 
     best = max(records, key=lambda r: float(ratio(r[1], r[2])))
@@ -87,7 +102,8 @@ def main():
         if sp.simplify(lam - buser_bound(H)) > 0:
             viol.append((n, h, lam, kind, sp.simplify(lam - buser_bound(H))))
     print(f"\nBuser  lam2 <= 2h+2h^2 : violations = {len(viol)} / {len(records)}")
-    for v in viol[:8]:
+    for v in viol[:
+        8]:
         print(f"   n={v[0]} h={v[1]} lam2={sp.N(v[2],8)} slack={sp.N(v[4],8)}")
 
     # ---- test  Cheeger: lam2 >= 1 - sqrt(h(2-h)) -----------------------
@@ -98,7 +114,8 @@ def main():
             violC.append((n, h, lam, kind))
     print(f"Cheeger lam2 >= 1-sqrt(h(2-h)) : violations = "
           f"{len(violC)} / {len(records)}")
-    for v in violC[:8]:
+    for v in violC[:
+        8]:
         print(f"   n={v[0]} h={v[1]} lam2={sp.N(v[2],8)}")
 
     # ---- empirical extremal curve ---------------------------------------
