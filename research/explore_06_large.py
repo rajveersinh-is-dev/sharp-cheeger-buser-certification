@@ -17,16 +17,26 @@ Run:  python research/explore_06_large.py [n_max] [samples_per_config]
 
 from __future__ import annotations
 
-import itertools
-import random
 import sys
 
 import numpy as np
+import random
+
+
 
 sys.path.insert(0, "src")
 
 
 def degrees(A):
+    """Degrees.
+    
+    Args:
+        A:
+    
+    Returns:
+        The computed result
+    
+    """
     return A.sum(axis=1)
 
 
@@ -54,9 +64,9 @@ def cheeger_h(A, n, rng, iters=2000):
             if vol == 0 or 2 * vol > volV:
                 continue
             idx = [v for v in range(n) if (mask >> v) & 1]
-            for a in range(len(idx)):
+            for a, item in enumerate(idx):
                 for b in range(a + 1, len(idx)):
-                    inside += A[idx[a], idx[b]]
+                    inside += A[item, idx[b]]
             bnd = vol - 2 * inside
             if vol > 0:
                 best = min(best, bnd / vol)
@@ -74,7 +84,16 @@ def cheeger_h(A, n, rng, iters=2000):
     return best
 
 
-def lam2(A):
+def lam2(A) -> float:
+    """Lam2.
+    
+    Args:
+        A (list):
+    
+    Returns:
+        float: Result of type float
+    
+    """
     d = degrees(A)
     if d.min() <= 0:
         return None
@@ -87,6 +106,18 @@ def lam2(A):
 
 
 def sample_regular(n, d, rng, tries=200):
+    """Sample regular.
+    
+    Args:
+        n:
+        d:
+        rng:
+        tries (int):
+    
+    Returns:
+        The computed result
+    
+    """
     m = n * d // 2
     while True:
         stubs = [v for v in range(n) for _ in range(d)]
@@ -119,6 +150,18 @@ def sample_regular(n, d, rng, tries=200):
 
 
 def random_connected(n, p, rng, tries=200):
+    """Random connected.
+    
+    Args:
+        n:
+        p:
+        rng:
+        tries (int):
+    
+    Returns:
+        The computed result
+    
+    """
     for _ in range(tries):
         A = (np.array([[rng.random() for _ in range(n)] for _ in range(n)]) < p)
         A = np.triu(A, 1).astype(float)
@@ -131,6 +174,9 @@ def random_connected(n, p, rng, tries=200):
 
 
 def main():
+    """Entry point — parse arguments and run the main computation.
+    
+    """
     rng = random.Random(20261017)
     n_max = int(sys.argv[1]) if len(sys.argv) > 1 else 60
     recs = []
