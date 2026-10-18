@@ -23,13 +23,14 @@ Run:  python research/explore_02.py [n_max] [loop_weight]
 from __future__ import annotations
 
 import itertools
-import json
 import sys
 
 import numpy as np
 
 
-def cheeger_hv_edges(nbr, n):
+
+
+def cheeger_hv_edges(nbr, n) -> tuple:
     """Edge-boundary / min-volume Cheeger constant.
 
         h(G) = min_{S : 0 < vol S <= vol V / 2}  |E(S, S^c)| / vol(S)
@@ -49,9 +50,9 @@ def cheeger_hv_edges(nbr, n):
             volS = sum(deg[v] for v in S)
             volC = volV - volS
             e_in = 0
-            for a in range(len(S)):
+            for a, item in enumerate(S):
                 for b in range(a + 1, len(S)):
-                    if (nbr[S[a]] >> S[b]) & 1:
+                    if (nbr[item] >> S[b]) & 1:
                         e_in += 1
             bnd = 2 * r - 2 * e_in
             den = min(volS, volC)
@@ -67,7 +68,7 @@ def cheeger_hv_edges(nbr, n):
     return best, best2, argbest
 
 
-def cheeger_v(nbr, n):
+def cheeger_v(nbr, n) -> tuple:
     """min |S| / |N(S)| over nonempty S with |S| <= n/2."""
     best = float("inf")
     argbest = None
@@ -87,7 +88,7 @@ def cheeger_v(nbr, n):
     return best, argbest
 
 
-def build(n, pairs, mask, loop_w):
+def build(n, pairs, mask, loop_w) -> tuple:
     """Adjacency rows as bitmasks plus the loop weight of each vertex."""
     nbr = [0] * n
     for k, (i, j) in enumerate(pairs):
@@ -97,7 +98,7 @@ def build(n, pairs, mask, loop_w):
     return nbr, loop_w
 
 
-def spectrum(nbr, n, loop_w):
+def spectrum(nbr, n, loop_w) -> tuple:
     """Normalized Laplacian eigenvalues for a graph with constant loop weight."""
     W = np.zeros((n, n))
     for i in range(n):
@@ -120,6 +121,9 @@ def spectrum(nbr, n, loop_w):
 
 
 def main():
+    """Entry point — parse arguments and run the main computation.
+    
+    """
     n_max = int(sys.argv[1]) if len(sys.argv) > 1 else 6
     loop_w = float(sys.argv[2]) if len(sys.argv) > 2 else 0.0
 
@@ -168,7 +172,8 @@ def main():
     print(f"tightest Cheeger slack  (lam2 - bound): {worst_cheeger[0]:+.8f}  {worst_cheeger[1]}")
     print(f"largest Buser ratio    lam2/(2h+2h^2): {worst_buser[0]:.8f}  {worst_buser[1]}")
 
-    for v in viol["cheeger"][:8]:
+    for v in viol["cheeger"][:
+        8]:
         print("   CHEEGER VIOLATION:", v)
 
 
