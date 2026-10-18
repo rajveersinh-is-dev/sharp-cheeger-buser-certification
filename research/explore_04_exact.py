@@ -29,18 +29,40 @@ Run:  python research/explore_04_exact.py [n_max]
 
 from __future__ import annotations
 
+from fractions import Fraction
 import itertools
 import sys
-from fractions import Fraction
 
 import sympy as sp
 
 
+
+
 def volume(W, S):
+    """Volume.
+    
+    Args:
+        W (list):
+        S:
+    
+    Returns:
+        The computed result
+    
+    """
     return sum(sum(W[v][u] for u in range(len(W))) for v in S)
 
 
 def boundary(W, S):
+    """Boundary.
+    
+    Args:
+        W (list):
+        S:
+    
+    Returns:
+        The computed result
+    
+    """
     n = len(W)
     tot = Fraction(0)
     for v in S:
@@ -54,6 +76,16 @@ def boundary(W, S):
 
 
 def neighbourhood_volume(W, S):
+    """Neighbourhood volume.
+    
+    Args:
+        W (list):
+        S:
+    
+    Returns:
+        The computed result
+    
+    """
     n = len(W)
     N = set(S)
     for v in S:
@@ -63,7 +95,7 @@ def neighbourhood_volume(W, S):
     return sum(sum(W[v][u] for u in range(n)) for v in N)
 
 
-def cheeger_constants(W):
+def cheeger_constants(W) -> tuple:
     """Return (h_plain, h_loop) minimised over 0 < vol(S) <= vol(V)/2."""
     n = len(W)
     tot = volume(W, range(n))
@@ -88,6 +120,15 @@ def cheeger_constants(W):
 
 
 def gen_normalized_laplacian(W):
+    """Gen normalized laplacian.
+    
+    Args:
+        W (list):
+    
+    Returns:
+        The computed result
+    
+    """
     n = len(W)
     M = sp.zeros(n)
     for v in range(n):
@@ -104,6 +145,15 @@ def gen_normalized_laplacian(W):
 
 
 def lam2_exact(W):
+    """Lam2 exact.
+    
+    Args:
+        W:
+    
+    Returns:
+        The computed result
+    
+    """
     L = gen_normalized_laplacian(W)
     if L is None:
         return None
@@ -118,6 +168,16 @@ def lam2_exact(W):
 
 
 def check(W, label):
+    """Check whether the condition holds.
+    
+    Args:
+        W (list):
+        label:
+    
+    Returns:
+        The computed result
+    
+    """
     n = len(W)
     hp, hl = cheeger_constants(W)
     if hp is None:
@@ -136,10 +196,22 @@ def check(W, label):
 
 
 def fmt(x):
+    """Fmt.
+    
+    Args:
+        x:
+    
+    Returns:
+        The computed result
+    
+    """
     return sp.N(x, 12)
 
 
 def main():
+    """Entry point — parse arguments and run the main computation.
+    
+    """
     n_max = int(sys.argv[1]) if len(sys.argv) > 1 else 4
     recs = []
     print("Enumerating weighted graphs WITH self-loops, exact rational arithmetic.")
@@ -184,7 +256,8 @@ def main():
 
     print("\n=== examples of Buser violations (loop-aware h) ===")
     bad = [r for r in recs if float(sp.N(r["buser_slack_loop"], 15)) < -1e-12]
-    for r in bad[:6]:
+    for r in bad[:
+        6]:
         print(f"  {r['label']}: lam2={fmt(r['lam2'])} h_loop={r['h_loop']} "
               f"slack={fmt(r['buser_slack_loop'])}")
     if not bad:
@@ -192,7 +265,8 @@ def main():
 
     print("\n=== examples of Cheeger violations (loop-aware h) ===")
     badc = [r for r in recs if float(sp.N(r["cheeger_slack_loop"], 15)) < -1e-12]
-    for r in badc[:6]:
+    for r in badc[:
+        6]:
         print(f"  {r['label']}: lam2={fmt(r['lam2'])} h_loop={r['h_loop']} "
               f"slack={fmt(r['cheeger_slack_loop'])}")
     if not badc:

@@ -41,6 +41,9 @@ def independent_boundary(W, S):
 
 
 def cross_check():
+    """Cross check.
+    
+    """
     print("=== 1. cross-check boundary() against an independent definition ===")
     bad = 0
     checked = 0
@@ -58,6 +61,9 @@ def cross_check():
 
 
 def identity_check():
+    """Identity check.
+    
+    """
     print("=== 2. identity  bnd(S) = vol(S) - 2E(S) - loops(S) ===")
     bad = 0
     for n in (2, 3, 4):
@@ -79,6 +85,13 @@ def identity_check():
 
 
 def verify_bounds(n_max_unw, n_max_wt):
+    """Check whether bounds.
+    
+    Args:
+        n_max_unw:
+        n_max_wt:
+    
+    """
     print("=== 3. exhaustive EXACT verification of both classical bounds ===")
     for tag, nmax, ew, lw in (
             ("unweighted", n_max_unw, (1,), (0,)),

@@ -20,14 +20,25 @@ from __future__ import annotations
 
 import itertools
 import json
-import random
 
 import numpy as np
+import random
+
+
 
 SEED = 20261017
 
 
 def subsets_upto_half(n):
+    """Subsets upto half.
+    
+    Args:
+        n:
+    
+    Returns:
+        The computed result
+    
+    """
     out = []
     for r in range(1, n // 2 + 1):
         for S in itertools.combinations(range(1, n), r - 1):
@@ -36,14 +47,24 @@ def subsets_upto_half(n):
 
 
 def cheeger_regular(A, subs):
+    """Cheeger regular.
+    
+    Args:
+        A:
+        subs:
+    
+    Returns:
+        The computed result
+    
+    """
     d = A.sum(axis=1)
     best = float("inf")
     for S in subs:
         idx = list(S)
         inside = 0.0
-        for a in range(len(idx)):
+        for a, item in enumerate(idx):
             for b in range(a + 1, len(idx)):
-                inside += A[idx[a], idx[b]]
+                inside += A[item, idx[b]]
         cut = d[idx].sum() - 2 * inside
         volS = d[idx].sum()
         if volS > 0:
@@ -53,7 +74,16 @@ def cheeger_regular(A, subs):
     return best
 
 
-def lam2_normalized(A):
+def lam2_normalized(A) -> float:
+    """Lam2 normalized.
+    
+    Args:
+        A:
+    
+    Returns:
+        float: Result of type float
+    
+    """
     d = A.sum(axis=1)
     if d.min() <= 0:
         return None
@@ -111,6 +141,9 @@ def perturb_weights(A, rng):
 
 
 def main():
+    """Entry point — parse arguments and run the main computation.
+    
+    """
     rng = random.Random(SEED)
     records = []
 
@@ -154,7 +187,8 @@ def main():
               f"h={w['h']:.6f} lam2={w['lam2']:.6f}")
 
     print("\n=== top 15 overall by ratio ===")
-    for w in sorted(records, key=lambda r: -r["ratio"])[:15]:
+    for w in sorted(records, key=lambda r: -r["ratio"])[:
+        15]:
         print(f"  {w['kind']:>10} n={w['n']:>2} d={w['d']:>2} h={w['h']:.6f} "
               f"lam2={w['lam2']:.6f} ratio={w['ratio']:.6f}")
 
