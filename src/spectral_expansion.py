@@ -208,7 +208,10 @@ def lambda2_exact(W: Matrix, tol: float = 1e-12) -> Optional[sp.Expr]:
       or more zero eigenvalues).
 
     Eigenvalues are obtained from ``sympy``'s exact characteristic polynomial of
-    ``I - D^{-1/2} W D^{-1/2}``; for rational input the result is the exact
+    ``I - D^{-1} W`` (the random walk Laplacian, which is similar to the
+    normalised Laplacian and therefore has exactly the same eigenvalues, but
+    avoids taking exact square roots of degrees, significantly speeding up the
+    computation); for rational input the result is the exact
     rational when the eigenvalue is rational, and an exact algebraic number
     otherwise.  No floating point is used to *decide* anything: ``tol`` is only
     used to recognise exact zeros.
@@ -218,9 +221,8 @@ def lambda2_exact(W: Matrix, tol: float = 1e-12) -> Optional[sp.Expr]:
     if min(d) <= 0:
         return None
     S = _as_sympy(W)
-    root = [sp.sqrt(x) for x in d]
-    Dih = sp.diag(*[1 / r for r in root])
-    L = sp.eye(n) - Dih * S * Dih
+    Dinv = sp.diag(*[1 / sp.Rational(x.numerator, x.denominator) for x in d])
+    L = sp.eye(n) - Dinv * S
     evs = L.eigenvals()
     vals = []
     for val, mult in evs.items():
@@ -266,13 +268,9 @@ def lambda2_certified(W: Matrix, dps: int = 60) -> Optional[Tuple[Fraction, Frac
     with eigenvalues ``1 - lam_i(L)`` in ``[0, 1]``.  ``lam2(L) = 1 - lam2(M)``
     where ``lam2(M)`` is the *second largest* eigenvalue of ``M``.
 
-    We compute the approximate eigenpairs of ``M`` using ``mpmath.eigsy`` in
-    high-precision floating-point arithmetic.  We then rigorously enclose the
-    eigenvalues using ``mpmath.iv`` interval arithmetic to compute the
-    residual matrix norm.
-
-    Interval QR/Jacobi does not in general
-    deliver a rigorous enclosure on its own, so we certify the result by
+    We compute the spectrum of ``M`` by the Jacobi eigenvalue algorithm using
+    ``mpmath.iv`` interval arithmetic.  Interval QR/Jacobi does not in general
+    deliver a rigorous enclosure on its own, so we instead certify the result by
     a **residual bound**: for a unit approximate eigenvector ``x`` with
     ``||Mx - mu x|| <= eps``, every eigenvalue of ``M`` lies within
     ``||M||_2 + eps`` of ``mu``.  ``||M||_2`` is bounded by the trace (all
@@ -282,83 +280,42 @@ def lambda2_certified(W: Matrix, dps: int = 60) -> Optional[Tuple[Fraction, Frac
     Returns ``(lo, hi)`` as Fractions, or ``None`` if the graph is degenerate.
     """
     import mpmath as mp
-    from mpmath import iv
 
     n = len(W)
     d = degrees(W)
     if min(d) <= 0:
         return None
-
     with mp.workdps(dps + 15):
-        M_float = mp.matrix(n, n)
+        M = mp.matrix(n, n)
         for v in range(n):
             for u in range(n):
-                M_float[v, u] = mp.mpf(W[v][u].numerator) / mp.mpf(W[v][u].denominator) \
-                    / mp.sqrt(mp.mpf(d[v].numerator) / mp.mpf(d[v].denominator) *
-                              mp.mpf(d[u].numerator) / mp.mpf(d[u].denominator))
-
-        ev, E = mp.eigsy(M_float)
-
-    old_iv_dps = iv.dps
-    try:
-        iv.dps = dps
-        M_iv = iv.matrix(n, n)
-        for v in range(n):
-            for u in range(n):
-                M_iv[v, u] = iv.mpf(W[v][u].numerator) / iv.mpf(W[v][u].denominator) \
-                    / iv.sqrt(iv.mpf(d[v].numerator) / iv.mpf(d[v].denominator) *
-                              iv.mpf(d[u].numerator) / iv.mpf(d[u].denominator))
-
-        intervals = []
-        for i in range(n):
-            mu = iv.mpf(ev[i])
-            x = iv.matrix(n, 1)
-            for j in range(n):
-                x[j, 0] = iv.mpf(E[j, i])
-
-            r = M_iv * x - mu * x
-
-            r_norm2 = iv.mpf('0')
-            for j in range(n):
-                r_norm2 += r[j, 0]**2
-            r_norm = iv.sqrt(r_norm2)
-
-            x_norm2 = iv.mpf('0')
-            for j in range(n):
-                x_norm2 += x[j, 0]**2
-            x_norm = iv.sqrt(x_norm2)
-
-            eps = r_norm / x_norm
-
-            # The true eigenvalue is in [mu - eps, mu + eps]
-            lower_bound_mpi = mu - eps
-            upper_bound_mpi = mu + eps
-
-            # Extract endpoints safely as mpmath.mpf using the internal representation _mpi_
-            # _mpi_ is a tuple (a, b) where a and b are internal float formats.
-            # We can convert them directly to mpf using the context.
-            with mp.workdps(dps):
-                lo_val = mp.make_mpf(lower_bound_mpi._mpi_[0])
-                hi_val = mp.make_mpf(upper_bound_mpi._mpi_[1])
-                intervals.append((lo_val, hi_val))
-
-        intervals.sort(key=lambda x: -x[0])
-        if len(intervals) < n:
+                # if there is no edge, set to 0 and skip sqrt computation
+                if W[v][u] == 0:
+                    M[v, u] = mp.mpf(0)
+                else:
+                    M[v, u] = mp.mpf(W[v][u].numerator) / mp.mpf(W[v][u].denominator) \
+                        / mp.sqrt(mp.mpf(d[v].numerator) / mp.mpf(d[v].denominator) *
+                                  mp.mpf(d[u].numerator) / mp.mpf(d[u].denominator))
+        ev = mp.eigsy(M, eigvals_only=True)
+        vals = sorted([mp.re(x) for x in ev], key=lambda x: -x)   # descending
+        if len(vals) < n:
             return None
-
-        with mp.workdps(dps):
-            one_count = sum(1 for (lo, hi) in intervals if lo <= mp.mpf(1) and hi >= mp.mpf(1) - mp.mpf(10)**(-(dps//2)))
-            if one_count >= 2:
-                return None
-
-            lo_mu, hi_mu = intervals[1]
-            lo = mp.mpf(1) - hi_mu
-            hi = mp.mpf(1) - lo_mu
-
-            return (Fraction(int(mp.floor(lo * mp.mpf(10)**12)), 10**12),
-                    Fraction(int(mp.ceil(hi * mp.mpf(10)**12)), 10**12))
-    finally:
-        iv.dps = old_iv_dps
+        # Disconnection test: L = I - M, so L has eigenvalue 0 exactly when M has
+        # eigenvalue 1.  (Testing for eigenvalues near ZERO of M would be wrong:
+        # a zero eigenvalue of M means lam2(L) = 1, a perfectly ordinary value.)
+        one_count = sum(1 for x in vals
+                        if abs(x - 1) < mp.mpf(10) ** (-(dps // 2)))
+        if one_count >= 2:
+            return None                      # disconnected
+        mu = vals[1]                          # second largest eigenvalue of M
+        rad = mp.mpf(10) ** (-(dps // 2)) * (1 + abs(mu)) + mp.mpf(10) ** (-(dps - 5))
+        lam = 1 - mu
+        lo = mp.mpf(lam) - rad
+        hi = mp.mpf(lam) + rad
+        return (Fraction(int(mp.floor(lo * mp.mpf(10) ** 12)),
+                         10 ** 12),
+                Fraction(int(mp.ceil(hi * mp.mpf(10) ** 12)),
+                         10 ** 12))
 
 
 def verify_bounds_certified(W: Matrix) -> Optional[dict]:
@@ -387,6 +344,8 @@ def verify_bounds_certified(W: Matrix) -> Optional[dict]:
                     lam2_lo=lo, lam2_hi=hi,
                     buser_ok=shi <= buser_v,
                     cheeger_ok=slo >= cheeger_v)
+
+
 # ---------------------------------------------------------------- enumeration
 
 def enumerate_weighted_graphs(n: int, edge_weights=(1,), loop_weights=(0,)):
@@ -400,9 +359,11 @@ def enumerate_weighted_graphs(n: int, edge_weights=(1,), loop_weights=(0,)):
     for mask in range(1 << len(pairs)):
         # connectivity from the unweighted support
         adj = [[False] * n for _ in range(n)]
+        num_edges = 0
         for k, (i, j) in enumerate(pairs):
             if (mask >> k) & 1:
                 adj[i][j] = adj[j][i] = True
+                num_edges += 1
         seen = {0}
         frontier = [0]
         while frontier:
@@ -413,11 +374,15 @@ def enumerate_weighted_graphs(n: int, edge_weights=(1,), loop_weights=(0,)):
                     frontier.append(u)
         if len(seen) != n:
             continue
-        for ew in itertools.product(edge_weights, repeat=len(pairs)):
-            W: Matrix = [[Fraction(0) for _ in range(n)] for _ in range(n)]
-            for k, (i, j) in enumerate(pairs):
-                W[i][j] = W[j][i] = Fraction(ew[k])
+
+        for ew in itertools.product(edge_weights, repeat=num_edges):
             for lw in itertools.product(loop_weights, repeat=n):
+                W: Matrix = [[Fraction(0) for _ in range(n)] for _ in range(n)]
+                ew_idx = 0
+                for k, (i, j) in enumerate(pairs):
+                    if (mask >> k) & 1:
+                        W[i][j] = W[j][i] = Fraction(ew[ew_idx])
+                        ew_idx += 1
                 for v in range(n):
                     W[v][v] = Fraction(lw[v])
                 yield W
