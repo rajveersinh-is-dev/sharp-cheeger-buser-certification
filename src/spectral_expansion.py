@@ -208,7 +208,10 @@ def lambda2_exact(W: Matrix, tol: float = 1e-12) -> Optional[sp.Expr]:
       or more zero eigenvalues).
 
     Eigenvalues are obtained from ``sympy``'s exact characteristic polynomial of
-    ``I - D^{-1/2} W D^{-1/2}``; for rational input the result is the exact
+    ``I - D^{-1} W`` (the random walk Laplacian, which is similar to the
+    normalised Laplacian and therefore has exactly the same eigenvalues, but
+    avoids taking exact square roots of degrees, significantly speeding up the
+    computation); for rational input the result is the exact
     rational when the eigenvalue is rational, and an exact algebraic number
     otherwise.  No floating point is used to *decide* anything: ``tol`` is only
     used to recognise exact zeros.
@@ -218,9 +221,8 @@ def lambda2_exact(W: Matrix, tol: float = 1e-12) -> Optional[sp.Expr]:
     if min(d) <= 0:
         return None
     S = _as_sympy(W)
-    root = [sp.sqrt(x) for x in d]
-    Dih = sp.diag(*[1 / r for r in root])
-    L = sp.eye(n) - Dih * S * Dih
+    Dinv = sp.diag(*[1 / sp.Rational(x.numerator, x.denominator) for x in d])
+    L = sp.eye(n) - Dinv * S
     evs = L.eigenvals()
     vals = []
     for val, mult in evs.items():
@@ -287,9 +289,13 @@ def lambda2_certified(W: Matrix, dps: int = 60) -> Optional[Tuple[Fraction, Frac
         M = mp.matrix(n, n)
         for v in range(n):
             for u in range(n):
-                M[v, u] = mp.mpf(W[v][u].numerator) / mp.mpf(W[v][u].denominator) \
-                    / mp.sqrt(mp.mpf(d[v].numerator) / mp.mpf(d[v].denominator) *
-                              mp.mpf(d[u].numerator) / mp.mpf(d[u].denominator))
+                # if there is no edge, set to 0 and skip sqrt computation
+                if W[v][u] == 0:
+                    M[v, u] = mp.mpf(0)
+                else:
+                    M[v, u] = mp.mpf(W[v][u].numerator) / mp.mpf(W[v][u].denominator) \
+                        / mp.sqrt(mp.mpf(d[v].numerator) / mp.mpf(d[v].denominator) *
+                                  mp.mpf(d[u].numerator) / mp.mpf(d[u].denominator))
         ev = mp.eigsy(M, eigvals_only=True)
         vals = sorted([mp.re(x) for x in ev], key=lambda x: -x)   # descending
         if len(vals) < n:
@@ -353,9 +359,11 @@ def enumerate_weighted_graphs(n: int, edge_weights=(1,), loop_weights=(0,)):
     for mask in range(1 << len(pairs)):
         # connectivity from the unweighted support
         adj = [[False] * n for _ in range(n)]
+        num_edges = 0
         for k, (i, j) in enumerate(pairs):
             if (mask >> k) & 1:
                 adj[i][j] = adj[j][i] = True
+                num_edges += 1
         seen = {0}
         frontier = [0]
         while frontier:
@@ -366,11 +374,15 @@ def enumerate_weighted_graphs(n: int, edge_weights=(1,), loop_weights=(0,)):
                     frontier.append(u)
         if len(seen) != n:
             continue
-        for ew in itertools.product(edge_weights, repeat=len(pairs)):
-            W: Matrix = [[Fraction(0) for _ in range(n)] for _ in range(n)]
-            for k, (i, j) in enumerate(pairs):
-                W[i][j] = W[j][i] = Fraction(ew[k])
+
+        for ew in itertools.product(edge_weights, repeat=num_edges):
             for lw in itertools.product(loop_weights, repeat=n):
+                W: Matrix = [[Fraction(0) for _ in range(n)] for _ in range(n)]
+                ew_idx = 0
+                for k, (i, j) in enumerate(pairs):
+                    if (mask >> k) & 1:
+                        W[i][j] = W[j][i] = Fraction(ew[ew_idx])
+                        ew_idx += 1
                 for v in range(n):
                     W[v][v] = Fraction(lw[v])
                 yield W

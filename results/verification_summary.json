@@ -36,12 +36,12 @@
       "cheeger_violations": 0
     },
     "3": {
-      "graphs": 864,
+      "graphs": 540,
       "buser_violations": 0,
       "cheeger_violations": 0
     },
     "4": {
-      "graphs": 196992,
+      "graphs": 50544,
       "buser_violations": 0,
       "cheeger_violations": 0
     }
@@ -55,12 +55,12 @@
     "cheeger": []
   },
   "max_ratio": {
-    "value": 2.000000000000625,
-    "n": 4,
-    "h": "4/7",
-    "lam2": "457142857143/400000000000"
+    "value": 2.0,
+    "n": 2,
+    "h": "1",
+    "lam2": "2"
   },
-  "total_exact_graphs": 225349,
+  "total_exact_graphs": 78577,
   "total_violations": 0,
-  "elapsed_seconds": 334.7
+  "elapsed_seconds": 385.4
 }
