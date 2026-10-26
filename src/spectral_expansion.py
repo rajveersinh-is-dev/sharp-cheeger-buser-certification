@@ -223,13 +223,8 @@ def lambda2_exact(W: Matrix, tol: float = 1e-12) -> Optional[sp.Expr]:
     S = _as_sympy(W)
     Dinv = sp.diag(*[1 / sp.Rational(x.numerator, x.denominator) for x in d])
     L = sp.eye(n) - Dinv * S
-    evs = L.eigenvals()
-    vals = []
-    for val, mult in evs.items():
-        if val.is_real is False:
-            return None
-        for _ in range(mult):
-            vals.append(val)
+    x = sp.Symbol('x')
+    vals = L.charpoly(x).all_roots()
     try:
         vals.sort(key=lambda x: float(sp.N(x, 30)))
     except TypeError:
