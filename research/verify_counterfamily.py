@@ -39,8 +39,8 @@ w = sp.symbols("w", positive=True)
 
 W = sp.Matrix([[w, 1], [1, w]])
 D = sp.diag(*[sum(W[i, j] for j in range(2)) for i in range(2)])
-Dinv_half = D ** sp.Rational(-1, 2)
-L = sp.eye(2) - Dinv_half * W * Dinv_half
+Dinv = D ** -1
+L = sp.eye(2) - Dinv * W
 
 print("W =", W)
 print("degree vector =", [sp.simplify(D[i, i]) for i in range(2)])
@@ -74,5 +74,7 @@ crit = [r for r in roots if r.is_real]
 if crit:
     print("positive critical value :", sp.simplify(crit[0]))
     print("numerically             :", sp.N(crit[0], 20))
-print("\nVerdict: bound holds for w <", sp.simplify(crit[0]),
-      "and FAILS for w >", sp.simplify(crit[0]))
+    print("\nVerdict: bound holds for w <", sp.simplify(crit[0]),
+          "and FAILS for w >", sp.simplify(crit[0]))
+else:
+    print("\nVerdict: bound never fails (slack is always <= 0 for w > 0)")

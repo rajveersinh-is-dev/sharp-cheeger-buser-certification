@@ -87,7 +87,7 @@ def cheeger_constants(W):
     return best_plain, best_loop
 
 
-def gen_normalized_laplacian(W):
+def gen_random_walk_laplacian(W):
     n = len(W)
     M = sp.zeros(n)
     for v in range(n):
@@ -99,16 +99,16 @@ def gen_normalized_laplacian(W):
         return None          # a vertex with zero total degree: undefined
     for v in range(n):
         for u in range(n):
-            M[v, u] = M[v, u] / sp.sqrt(d[v] * d[u])
+            M[v, u] = M[v, u] / d[v]
     return sp.eye(n) - M
 
 
 def lam2_exact(W):
-    L = gen_normalized_laplacian(W)
+    L = gen_random_walk_laplacian(W)
     if L is None:
         return None
-    ev = L.eigenvals()
-    vals = list(ev.keys())
+    x = sp.Symbol('x')
+    vals = L.charpoly(x).all_roots()
     if any(v.is_real is False for v in vals):
         raise ValueError("non-real eigenvalue encountered")
     vals = sorted(vals, key=lambda x: float(sp.N(x, 25)))
