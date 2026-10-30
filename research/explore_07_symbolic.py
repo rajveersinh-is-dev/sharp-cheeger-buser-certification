@@ -31,8 +31,8 @@ def analyse(a_name="a", w_name="w", a_pos=True, w_pos=True):
 
     M = sp.Matrix([[a, w], [w, a]])
     D = sp.diag(a + w, a + w)
-    Dih = D ** sp.Rational(-1, 2)
-    L = sp.simplify(sp.eye(2) - Dih * M * Dih)
+    Dinv = D ** -1
+    L = sp.simplify(sp.eye(2) - Dinv * M)
 
     evs = L.eigenvals()
     vals = []
@@ -85,8 +85,8 @@ def star_family():
                    [1, 0, 1],
                    [0, 1, t]])
     D = sp.diag(t + 1, 2, t + 1)
-    Dih = D ** sp.Rational(-1, 2)
-    L = sp.simplify(sp.eye(3) - Dih * W * Dih)
+    Dinv = D ** -1
+    L = sp.simplify(sp.eye(3) - Dinv * W)
     evs = L.eigenvals()
     vals = []
     for val, mult in evs.items():
