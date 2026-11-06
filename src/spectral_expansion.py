@@ -161,8 +161,6 @@ def neighbourhood_cheeger_constant(W: Matrix) -> Optional[Fraction]:
         if b == 0:
             continue
         den = vS + 2 * volume_of_neighbourhood(W, S)
-        if den == 0:
-            continue
         val = b / den
         if best is None or val < best:
             best = val
