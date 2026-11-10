@@ -2,8 +2,8 @@
 
 ## A. Repository and baseline
 
-- Repository and branch: `sharp-cheeger-buser-certification` on the current branch `jules-15988787811602642106-5802ae88` (baseline).
-- Starting commit and resulting commit or PR: Evaluated against the latest commit; no new PR generated.
+- Repository and branch: `sharp-cheeger-buser-certification` on the current branch `jules-372385629305135673-d8ea3c25` (baseline).
+- Starting commit and resulting commit or PR: Evaluated against the latest commit (`c34f52e432a3b257263a75adb5135a53d27427c6`); no new PR generated.
 - Scope examined: Mathematical routines in `src/spectral_expansion.py`, `src/sharp_constants.py`, the test suite in `tests/`, and verification scripts in `experiments/` and `research/`. The memory constraints (regarding `charpoly().all_roots()` over `.eigenvals()` for numeric matrices, and random walk Laplacian formulation to avoid square roots) were also audited.
 
 ## B. Improvements implemented
@@ -19,8 +19,7 @@ No safe code change justified. The repository is already adhering tightly to the
 
 | Check or command | Actual outcome | Relevant output or evidence | Explanation of limitation |
 |---|---|---|---|
-| `pytest tests/` | PASS | `47 passed in 36.89s` | Evaluated locally; tests fast and reliable. |
-| `pytest --cov=src tests/` | PASS | `TOTAL 228 0 100%` coverage | Verified locally. Full statement coverage on `src/`. |
+| `pytest tests/` | PASS | `47 passed in ~39.2s` | Evaluated locally; tests fast and reliable. |
 | `python experiments/run_verification.py --quick` | PASS | `total graphs verified: 601`, `total violations: 0` | The fast verification script executed cleanly. |
 | Code audit (Memory directives) | PASS | `grep` showed `charpoly(x).all_roots()` in numeric paths. | Found complete compliance. |
 
